@@ -3,20 +3,30 @@
  <head>
    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
    <title>My project</title>
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js" charset="utf-8"></script>
+   <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js" charset="utf-8"></script>-->
+   
+   <script type="text/javascript" src="js/d3.v3.min.js"></script>
+
+<!-- CSS Style //-->
+<link href="http://fonts.googleapis.com/css?family=Source+Sans+Pro:300,900|Source+Code+Pro:300" rel="stylesheet" type="text/css">
+<link href="style.css" rel="stylesheet" type="text/css">
+
    <link href="style.css" rel="stylesheet">
  </head>
  <body>
+   <p>Order: <select id="order">
+      <option value="group">Group</option>
+      <option value="degree">Degree</option>
+      <option value="name">Name</option>
+      <option value="value">Value</option>
+   </select>
    <div id="chart">
    </div>
-   <script type="text/javascript" src="script.js"></script>
+   
+   <script type="text/javascript" src="script_ptype.js"></script>
    <script>
-   // Eg:
-   // d3.csv("data/data.csv", function(data) {
-   //   d3.select(".chart")
-   //       .datum(data)
-   //       .call(chart);
-   // });
+   
+   d3.json("data/data.json", arcDiagram);
 
    </script>
  </body>
