@@ -1,29 +1,18 @@
 /* GLOBALS */
 
-var width  = 960;           // width of svg image
-var height = 400;           // height of svg image
-var margin = 20;            // amount of margin around plot area
-var pad = margin/2;       // actual padding amount
-// var pad = margin / 2;       // actual padding amount
-var radius = 6;
-var yoffset= 20;             // fixed node radius
-var yfixed = height - margin - pad - radius - yoffset;  // y position for all nodes
-var radians = d3.scale.linear()
-        .range([Math.PI / 2, 3 * Math.PI / 2]);
+var width  = 960;             // width of svg image
+var height = 400;             // height of svg image
+var margin = 20;              // amount of margin around plot area
+var pad = margin/2;           // actual padding amount
+var yoffset = 30;             // fixed node radius
+var yfixed = height - margin  - yoffset;  // y position for all nodes
 
-// var zoom = d3.behavior.zoom().x(x).scaleExtent([1, 100]).on("zoom", zoomed);
 var color = d3.scale.category20();
 var orders = {};
-var x = d3.scale.ordinal().rangeBands([radius,width - margin - radius]);
+var x = d3.scale.ordinal().rangeBands([margin,width - margin]);
 var svg;
+
 /* HELPER FUNCTIONS */
-d3.selection.prototype.moveToFront = function() {
-  return this.each(function(){
-    this.parentNode.appendChild(this);
-  });
-};
-
-
 
 // Generates a tooltip for a SVG circle element based on its ID
 function addTooltip(circle) {
@@ -37,7 +26,7 @@ function addTooltip(circle) {
         .text(text)
         .attr("x", x)
         .attr("y", y)
-        .attr("dy", radius*5)
+        .attr("dy", margin*1.5)
         .attr("id", "tooltip");
 
     var offset = tooltip.node().getBBox().width / 2;
@@ -71,13 +60,22 @@ function arcDiagram(graph) {
         .append("svg")
         .attr("id", "arc")
         .attr("width", width)
-        .attr("height", height);
+        .attr("height", height)
+        .call(d3.behavior.zoom().scaleExtent([1, 10]).on("zoom", zoom));
 
     // draw border around svg image
     svg.append("rect")
         .attr("class", "outline")
         .attr("width", width)
         .attr("height", height);
+
+    svg.append("line")          // attach a line
+        .style("stroke", "black")  // colour the line
+        .attr("stroke-width", 0.25)  // colour the line
+        .attr("x1", 0)     // x position of the first end of the line
+        .attr("y1", height - yoffset - pad)      // y position of the first end of the line
+        .attr("x2", width)     // x position of the second end of the line
+        .attr("y2", height - yoffset - pad); 
 
     // create plot area within svg image
     var plot = svg.append("g")
@@ -111,6 +109,20 @@ function arcDiagram(graph) {
 
     // draw nodes last
     drawNodes(graph.nodes);
+
+    var items = d3.selectAll(".item");
+    function zoom(){    
+        var s = d3.event.scale;
+        var t = d3.event.translate[0];
+        var tx = Math.min(0, Math.max(width * (1 - s), t));
+        var xmin = margin + tx;
+        var xmax = tx + s*(width - margin);
+        x.rangeBands([xmin,xmax]);
+        d3.selectAll("circle")
+            .attr("cx", function(d,i) { return x(i); });
+        d3.selectAll("path")
+            .attr("d", linkArc);
+    }
 }
 
 // Draws nodes on plot
@@ -121,7 +133,7 @@ function drawNodes(nodes) {
         .data(nodes)
         .enter()
         .append("circle")
-        .attr("class", "node")
+        .attr("class", "node item")
         .attr("id", function(d, i) { return d.name; })
         .attr("cx", function(d, i) { return x(d.i); })
         .attr("cy", yfixed )
@@ -130,12 +142,13 @@ function drawNodes(nodes) {
         .on("mouseover", function(d, i) { 
             var sel = d3.select(this);
             sel.style("stroke","grey")
-            sel.moveToFront();
-            addTooltip(sel); })
+            addTooltip(sel);
+        })
         .on("mouseout",  function(d, i) { 
             d3.select(this).style("stroke","white")
-            d3.select("#tooltip").remove(); })
-        }
+            d3.select("#tooltip").remove(); 
+        });
+    }
 
 // Draws nice arcs for each link on plot
 function drawLinks(links) {
@@ -145,14 +158,14 @@ function drawLinks(links) {
         .data(links)
         .enter()
         .append("path")
-        .attr("class", "link")
+        .attr("class", "link item")
         .style("opacity",1)
         .style("stroke", function(d) {return color(d.source.group)})
         .attr("d", linkArc)
         .attr("stroke-width",1.75);   
 }
 
-    function linkArc(d) {
+function linkArc(d) {
       var start = x(d.source.i);
       var end   = x(d.target.i); 
       var dx = start - end,
@@ -162,14 +175,11 @@ function drawLinks(links) {
       }
       else{
         return "M" + end + "," + yfixed + "A" + dr + "," + dr + " 0 0,1 " + start + "," + yfixed;  
-      }
-      
-}
+      } 
+    }
 
 function order(value){
     x.domain(orders[value]);
-    var radians = d3.scale.linear()
-        .range([Math.PI / 2, 3 * Math.PI / 2]);
 
     var t = svg.transition().duration(750);
 
