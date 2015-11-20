@@ -6,13 +6,18 @@ var margin = 20;              // amount of margin around plot area
 var pad = margin/2;           // actual padding amount
 var yoffset = 30;             // fixed node radius
 var yfixed = height - margin  - yoffset;  // y position for all nodes
-
-var cscale = d3.scale.category20();
-var colormap = {"PROG":1, "VIEW":3, "FUNC":15, "TCOD":7, "TTAB":1, "STRU":5, "TABL":15, "DTEL":6, "TTYP":15, "INCL":4, "METH":11, "FUGR":18 };
-var color = function(group){return cscale(colormap[group]);};
 var orders = {};
+
+// Get colours
+var groups = ["PROG","VIEW","FUNC","TCOD","TTAB","STRU","TABL","DTEL","TTYP","INCL","METH","FUGR"];
+var color = {};
+var light_color = {};
+groups.forEach(function(d,i){var c = d3.scale.category20c().range()[i];color[d] = c;light_color[d] = tinycolor(c).lighten(35);});
+
 var x = d3.scale.ordinal().rangeBands([margin,width - margin]);
 var svg;
+var canvas;
+
 
 /* HELPER FUNCTIONS */
 
@@ -47,27 +52,25 @@ function addTooltip(circle) {
     }
 }
 
- d3.select("#order").on("change", function() {
-    // clearTimeout(timeout);
-    order(this.value);
-  });
-
-
 /* MAIN DRAW METHOD */
 
 // Draws an arc diagram for the provided undirected graph
 function arcDiagram(graph) {
+
+    canvas = d3.select("canvas")
+       .attr("width",width)
+       .attr("height",height)
+       .node().getContext("2d");
+    canvas.globalAlpha=0.5;
+
     // create svg image
-    svg = d3.select("body")
-        .append("svg")
+    svg = d3.select(".svg")
         .attr("id", "arc")
         .attr("width", width)
         .attr("height", height)
         .call(d3.behavior.zoom()
             .scaleExtent([1, 1000])
-            .on("zoom", zoom)
-            .on("zoomend", zoomEnd)
-            );
+            .on("zoom", zoom));
 
     // draw border around svg image
     svg.append("rect")
@@ -92,16 +95,17 @@ function arcDiagram(graph) {
         .attr("id", "plot")
         .attr("transform", "translate(" + pad + ", " + pad + ")");
 
-    // Filter edges with null source/target
-    graph.edges = graph.edges.filter(function(d){
-        return (d.source in graph.nodes && d.target in graph.nodes)}
+    var nodes  = svg.append("g")
+        .attr('id', "nodes");
+
+    // Filter links with null source/target
+    graph.links = graph.links.filter(function(d){
+        return (d.source in graph.nodes && d.target in graph.nodes);}
         );
 
-    // fix graph links to map to objects instead of indices
-    graph.edges.forEach(function(d, i) {
+    graph.links.forEach(function(d, i) {
         d.source = graph.nodes[d.source];
         d.target = graph.nodes[d.target];
-        
         d.source.degree = ++d.source.degree || 0;
         d.target.degree = ++d.target.degree || 0;
         d.source.children = d.source.children || [];
@@ -110,26 +114,49 @@ function arcDiagram(graph) {
         d.target.parents.push(d.source);
     });
 
-    var n  = Object.keys(graph.nodes).length;
-    var keys  = Object.keys(graph.nodes);
+    d3.select("#links_checkbox").on("change", function() {
+      if(this.checked){
+        canvas.clearRect(0, 0, width, height);
+    }
+      else{
+        drawLinks(graph.links);
+    }
+  });
 
     orders = {
-        name:   Object.keys(graph.nodes).sort(function(a, b) { return d3.ascending(graph.nodes[a].name, graph.nodes[b].name); }),
-        group:  Object.keys(graph.nodes).sort(function(a, b) { return graph.nodes[b].group - graph.nodes[a].group; }),
-        degree: Object.keys(graph.nodes).sort(function(a, b) { return graph.nodes[b].degree - graph.nodes[a].degree} ),
-        value:  Object.keys(graph.nodes).sort(function(a, b) { return graph.nodes[b].degree - graph.nodes[a].degree} ),
-        // value:  Object.keys(graph.nodes).sort(function(a, b) { return graph.nodes[b].value - graph.nodes[a].value} ),
+        name:   Object.keys(graph.nodes).sort(),
+        group:  Object.keys(graph.nodes).sort(function(a, b) { return graph.nodes[b].group - graph.nodes[a].group;}),
+        degree: Object.keys(graph.nodes).sort(function(a, b) { return graph.nodes[b].degree - graph.nodes[a].degree;} ),
     };
 
-    x.domain(orders.group)
-    d3.values(graph.nodes);
+    x.domain(orders.name);
+
+    d3.select("#order").on("change", function() {
+            x.domain(orders[this.value]);
+            canvas.save();
+            canvas.clearRect(0, 0, width, height);
+            var t = svg.transition().duration(1000);
+
+            t.selectAll("circle")
+                .delay(function(d,i){return i*0.5;})
+                .attr("cx", function(d) { return x(d.id); })
+                .each("end", function(d){
+                    if(d.parents){
+                        d.parents.forEach(function(c){
+                            _draw_arc(x(d.id),x(c.id),light_color[c.group]);
+                        });
+                    }
+            });   
+      });
+
     // draw links first, so nodes appear on top
-    drawLinks(graph.edges);
+    drawLinks(graph.links);
 
     // draw nodes last
     drawNodes(graph.nodes);
 
-    var items = d3.selectAll(".link, .node");
+    var myNodes = nodes.selectAll(".node");
+
     function zoom(){    
         var s = d3.event.scale;
         var t = d3.event.translate[0];
@@ -137,68 +164,61 @@ function arcDiagram(graph) {
         var xmin = margin + tx;
         var xmax = tx + s*(width - margin);
         x.rangeBands([xmin,xmax]);
+        if(!d3.selectAll('#links_checkbox').property('checked') ){
+            canvas.save();
+            canvas.clearRect(0, 0, width, height);
+            drawLinks(graph.links);
+            canvas.restore();       
+        }
+        myNodes.attr("cx", function(d) { return x(d.id);});
+        }
 
-        var visible_nodes =  d3.values(graph.nodes).filter(function(d){
-            return x(d.id) >= -10 && x(d.id) <= width;
-        });
-
-        var visible_edges = graph.edges.filter(function(d){
-            return (visible_nodes.indexOf(d.source) > -1) || 
-            (visible_nodes.indexOf(d.target) > -1);
-        });
-
-        d3.selectAll(".link").style("visibility","hidden");
-        drawLinks(visible_edges);
-        drawNodes(visible_nodes);
-
-
-    }
 }
+
 // Draws nodes on plot
 function drawNodes(nodes) {
     // used to assign nodes color by group
-    var circles =  d3.select("#plot").selectAll(".node")
-        .data( d3.values(nodes), function(d) {return d.id;})
-        .attr("cx", function(d) { return x(d.id) });
-
+    // var circles =  d3.select("#plot").selectAll(".node")
+    var circles =  d3.select("#nodes").selectAll(".node")
+        .data( d3.values(nodes), function(d) {return d.id;});
     circles.enter()
         .append("circle")
-        .attr("class", function(d){return "node " + d.name})
-        .attr("id", function(d) { return d.name; })
-        .attr("cx", function(d) { return x(d.id) })
-        .attr("cy", yfixed )
-        .attr("r",  function(d,i) { return 10 })
-        .style("fill",   function(d) { return color(d.group); })
+        .attr("class", function(d){return "node " + d.id;})
+        .attr("id", function(d) { return d.id; })
+        .attr("cx", function(d) { return x(d.id);})
+        .attr("cy", yfixed + 10 )
+        .attr("r",  function(d,i) { return 10;})
+        .style("fill",   function(d) { return color[d.group]; })
         .on("mouseover", function(d) { 
             var sel = d3.select(this);
-            sel.style("stroke","grey")
+            sel.style("stroke","grey");
             addTooltip(sel);
         })
         .on("mouseout",  function(d, i) { 
-            d3.select(this).style("stroke","white")
+            d3.select(this).style("stroke","white");
             d3.select("#tooltip").remove(); 
         })
         .on("click",function(d){
-            d3.selectAll("circle:not(."+d.name+")")
+            d3.selectAll("circle:not(."+d.id+")")
                 .transition()
                 .duration(200)
                 .style("fill","lightgrey");
-            d3.selectAll(".link:not(."+d.name+")")
+            d3.selectAll(".link:not(."+d.id+")")
                 .transition()
                 .duration(200)
                 .style("stroke-width",1.75)
-                .style("stroke-opacity",.75)
+                .style("stroke-opacity",0.75)
                 .style("stroke","lightgrey");
-            d3.selectAll("circle."+d.name)
+            d3.selectAll("circle."+d.id)
                 .transition()
                 .duration(200)
-                .style("fill",function(d) {return color(d.group);})
-            d3.selectAll(".link."+d.name)
+                .style("fill",function(d) {return color[d.group];});
+            d3.selectAll(".link."+d.id)
                 .transition()
                 .duration(200)
                 .style("stroke-width",3)
                 .style("stroke-opacity",1)
-                .style("stroke", function(d) {return color(d.source.group)})
+                .style("stroke", function(d) {return color[d.source.group];});
         })
         .on("dblclick",function(d){
            reset_color();
@@ -208,47 +228,25 @@ function drawNodes(nodes) {
 
     }
 
-// Draws nice arcs for each link on plot
+
+// Draws arcs for each link on plot
 function drawLinks(links) {
-    // add links
-    var links = d3.select("#plot").selectAll(".link")
-        .data(links)
-        .attr("d", linkArc);
-    links.enter()
-        .append("path")
-        .attr("class", function(d){return "link " + d.source.name + " " + d.target.name})
-        .attr("id", function(d){return ""})
-        .style("opacity",1)
-        .style("stroke", function(d) {return color(d.source.group)})
-        .attr("d", linkArc)
-        .attr("stroke-width",1.75);
-    links.exit().remove();   
+    links.forEach(function(d){
+        if(viewable(d.source.id) || viewable(d.target.id)){
+            _draw_arc(x(d.source.id),x(d.target.id),light_color[d.source.group]);
+        }
+    });
 }
 
-function linkArc(d) {
-      var start = x(d.source.id);
-      var end   = x(d.target.id); 
-      var dx = start - end,
-          dr = 0.55*dx
-      if (dx < 0){
-        return "M" + start + "," + yfixed + "A" + dr + "," + dr + " 0 0,1 " + end + "," + yfixed; 
-      }
-      else{
-        return "M" + end + "," + yfixed + "A" + dr + "," + dr + " 0 0,1 " + start + "," + yfixed;  
-      } 
-    }
-
-function order(value){
-    x.domain(orders[value]);
-
-    var t = svg.transition().duration(750);
-
-    t.selectAll("circle")
-        .attr("cx", function(d) { return x(d); });
-
-    // t.selectAll("path")
-    //     .delay(function(d,i){return i*1.5})
-    //     .attr("d", linkArc); 
+function _draw_arc(start,end,color){
+     canvas.beginPath();
+     var rel_dist = Math.abs(start - end) / width; 
+     var ycontrol = yfixed * (1 - rel_dist) ;
+     var center = (start + end)/2;
+     canvas.moveTo(start,yfixed);
+     canvas.quadraticCurveTo(center, ycontrol, end, yfixed);
+     canvas.strokeStyle = color;
+     canvas.stroke();
 }
 
 function get_parents(elem){
@@ -260,19 +258,13 @@ function get_parents(elem){
     return p;
 }
 
-
-function zoomEnd(){
-    d3.selectAll(".link").style("visibility","visible");
+function viewable(d){
+    return (x(d) > -width && x(d) < width*2); 
 }
 
 function reset_color(){
      d3.selectAll("circle")
-                .transition()
-                .duration(200)
-                .style("fill",function(d) {return color(d.group);});    
-    d3.selectAll(".link")
-                .transition()
-                .duration(200)
-                .style("stroke-width",1.75)
-                .style("stroke", function(d) {return color(d.source.group)})
+        .transition()
+        .duration(200)
+        .style("fill",function(d) {return color[d.group];});    
 }

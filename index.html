@@ -6,6 +6,7 @@
    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js" charset="utf-8"></script>-->
    
    <script type="text/javascript" src="js/d3.v3.min.js"></script>
+   <script type="text/javascript" src="js/tinycolor.js"></script>
 
 <!-- CSS Style //-->
 <link href="http://fonts.googleapis.com/css?family=Source+Sans+Pro:300,900|Source+Code+Pro:300" rel="stylesheet" type="text/css">
@@ -14,15 +15,17 @@
    <link href="style.css" rel="stylesheet">
  </head>
  <body>
+   
    <p>Order: <select id="order">
+      <option value="name">Name</option>
       <option value="group">Group</option>
       <option value="degree">Degree</option>
-      <option value="name">Name</option>
-      <option value="value">Value</option>
    </select>
+   <input type="checkbox" id="links_checkbox" value="hide_links">Hide Links<br>
    <div id="chart">
+      <canvas id="background"></canvas>
+      <svg class="svg"></svg>
    </div>
-   
    <script type="text/javascript" src="arc_diagram.js"></script>
    <script>
    d3.json("data/ps_data.json", arcDiagram);

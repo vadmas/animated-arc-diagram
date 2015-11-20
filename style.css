@@ -39,3 +39,10 @@ b {
     stroke-weight: 4px;
     stroke-opacity: 1.0;
 }
+
+canvas, svg {
+  position: absolute;
+  top: 300;
+  left: 300;
+}
+
