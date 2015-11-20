@@ -55,12 +55,12 @@ function addTooltip(circle) {
     }
 }
 
-sapdash.init = function(graph,options){
-    options = options || {};
+sapdash.init = function(data,opts){
+    options = opts || {};
     options.display_links = options.display_links  || true;
     
     // Prepare Data
-    graph = _process_data(graph);
+    graph = _process_data(data);
 
     // Preprocess xaxis positions
     orders = _get_orders(graph);
@@ -251,8 +251,8 @@ sapdash.change_order = function(order){
 };
 
 sapdash.show_links = function(bool){
-    options.show_links = bool;
-    if(options.show_links){
+    options.display_links = bool;
+    if(options.display_links){
         drawLinks(graph.links);
     }
     else{
