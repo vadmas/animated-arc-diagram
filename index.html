@@ -28,7 +28,23 @@
    </div>
    <script type="text/javascript" src="arc_diagram.js"></script>
    <script>
-   d3.json("data/ps_data.json", arcDiagram);
+   
+   d3.json("data/ps_data.json", function(json){
+      sapdash.init(json);
+   });
+
+   d3.select("#order").on("change", function() {
+      sapdash.change_order(this.value);
+   });
+
+   d3.select("#links_checkbox").on("change", function() {
+      if(this.checked){
+        sapdash.show_links(false);
+    }
+      else{
+        sapdash.show_links(true);
+    }
+  });
 
    </script>
  </body>
