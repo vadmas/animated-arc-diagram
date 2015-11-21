@@ -20,6 +20,15 @@
       <option value="name">Name</option>
       <option value="group">Group</option>
       <option value="degree">Degree</option>
+      <option value="value">Value</option>
+   </select> 
+   Value: <select id="value">
+      <option value="none">None</option>
+      <option value="performance">Performance</option>
+      <option value="loc">Loc</option>
+      <option value="dbrows">DBrows</option>
+      <option value="usage">Usage</option>
+      <option value="p_viol_d">P_Viol_D</option>
    </select>
    <input type="checkbox" id="links_checkbox" value="hide_links">Hide Links<br>
    <div id="chart">
@@ -29,12 +38,16 @@
    <script type="text/javascript" src="arc_diagram.js"></script>
    <script>
    
-   d3.json("data/ps_data.json", function(json){
+   d3.json("data/ps_data2.json", function(json){
       sapdash.init(json);
    });
 
    d3.select("#order").on("change", function() {
       sapdash.change_order(this.value);
+   });
+
+   d3.select("#value").on("change", function() {
+      sapdash.set_value(this.value);
    });
 
    d3.select("#links_checkbox").on("change", function() {
