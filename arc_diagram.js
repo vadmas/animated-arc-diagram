@@ -4,7 +4,7 @@ sapdash = {};
 
 /* GLOBALS */
 
-var width  = 960;             // width of svg image
+var width  = 1200;             // width of svg image
 var height = 400;             // height of svg image
 var margin = 20;              // amount of margin around plot area
 var yoffset = 30;             // Offset from bottom
@@ -14,15 +14,15 @@ var yfixed = height - margin  - yoffset;  // y position for all nodes
 var groups = ["PROG","VIEW","FUNC","TCOD","TTAB","STRU","TABL","DTEL","TTYP","INCL","METH","FUGR"];
 var color = {};
 var dark_color = {};
-groups.forEach(function(d,i){var c = d3.scale.category20c().range()[i];color[d] = c;dark_color[d] = tinycolor(c).darken(7);});
-var default_radius = 5;
+var light_color = {};
+groups.forEach(function(d,i){var c = d3.scale.category20c().range()[i];color[d] = c;dark_color[d] = tinycolor(c).darken(10); light_color[d] = tinycolor(c).lighten(10);});
+
+var default_radius = 12;
 
 var x = d3.scale.ordinal().rangeBands([margin,width - margin]);
 var value = function(d){return default_radius;};
 var svg, canvas, orders, graph, options;
 
-
-/* HELPER FUNCTIONS */
 
 sapdash.init = function(data,opts){
     options = opts || {};
@@ -79,14 +79,20 @@ sapdash.init = function(data,opts){
             .attr("height", yfixed)
             .style("stroke","#888888")
             .style("stroke-width",1)
-            .style("fill-opacity",0.75)
+            .style("fill-opacity",0.45)
             .attr("fill","white");
+    
+    // highlight path layer
+    svg.append("g")
+        .attr("id","highlight-path-layer");
 
-    var highlight = svg.append("g")
-                    .attr("id","highlight-layer");
+    // nodes layer        
+    svg.append("g")
+        .attr('id', "nodes");
 
-    var nodes = svg.append("g")
-                .attr('id', "nodes");
+    // // highlight node layer
+    // svg.append("g")
+    //     .attr('id', "highlight-node-layer");
 
     // draw links 
     if(options.show_links) drawLinks(graph.links);
@@ -111,7 +117,8 @@ sapdash.init = function(data,opts){
             canvas.restore();       
         }
         myNodes.attr("cx", function(d) { return x(d.id);});
-        d3.selectAll(".highlight").attr("d", getBezierSvg);
+        d3.selectAll(".highlight")
+            .attr("d", getBezierSvg);
     }
 };
 
@@ -131,22 +138,22 @@ function drawNodes(nodes) {
         .attr("cx", function(d) { return x(d.id);})
         .attr("cy", yfixed )
         .attr("r",  value )
-        .on("mouseover", function(d) { 
-            var sel = d3.select(this);
-            var r = +sel.attr("r") + 2;
-            sel.style("stroke","grey");
-            sel.attr("r",r);
-            addTooltip(sel);
-            d3.selectAll(".highlight").remove();
-            highlight(d);
+        .on("mouseover", function(d){
+            highlightNode(d);
+            addTooltip(d3.select(this));
         })
-        .on("mouseout",  function(d, i) { 
-            var sel = d3.select(this);
-            var r = +sel.attr("r") - 2;
-            sel.style("stroke", function(d) { return dark_color[d.group];});
-            sel.attr("r",r);
+        .on("mouseover.highlightPath", highlightPath) 
+        .on("mouseover.highlightFamily", function(d){
+            d3.selectAll(getFamilyString(d)).each(highlightNode);
+        }) 
+        .on("mouseout",  function(d) { 
+            unhighlightNode(d);
             d3.select("#tooltip").remove(); 
             d3.selectAll(".highlight").remove();
+            d3.selectAll(getFamilyString(d)).each(unhighlightNode);                
+        })
+        .on("click",  function(d) { 
+            console.log("click");
         });
 
     circles.exit().remove();
@@ -154,7 +161,7 @@ function drawNodes(nodes) {
     }
 
 // Draws arcs for each link on plot
-// *Note* Draws on CANVAS not SVG for performance
+// *Note* draws on CANVAS not SVG for performance
 function drawLinks(links) {
     links.forEach(function(d){
         if(viewable(d.source.id) || viewable(d.target.id)){
@@ -164,10 +171,12 @@ function drawLinks(links) {
 }
 
 // Draw highlight arc on hover
-function highlight(node){
-    var data = make_parent_links(node).concat(make_child_links(node));
-    var path = d3.select("#highlight-layer").selectAll(".highlight")
-        .data(data);
+function highlightPath(d){
+    var pathdata = makeParentLinks(d).concat(makeChildLinks(d));
+    var nodedata = [d].concat(d.parents).concat(d.children);
+
+    var path = d3.select("#highlight-path-layer").selectAll(".highlight")
+        .data(pathdata);
     path.enter()
         .append("path")
         .attr("class", "highlight")
@@ -176,6 +185,29 @@ function highlight(node){
         .style("fill",  "none")
         .attr("d", getBezierSvg);
     path.exit().remove();
+
+
+}
+
+// Highlight node
+function highlightNode(d){
+    var sel = d3.select("#" + d.id);
+    var r = +sel.attr("r") + 2.5;
+    sel.style("stroke","yellow");
+    sel.style("stroke-width",1.5);
+    sel.style("fill", function(d){return dark_color[d.group];});
+    sel.attr("r",r);
+    
+}
+
+// unhighlight node
+function unhighlightNode(d){
+    var sel = d3.select("#" + d.id);
+    var r = +sel.attr("r") - 2.5;
+    sel.style("stroke-width",1);
+    sel.style("stroke", function(d) { return dark_color[d.group];});
+    sel.style("fill", function(d){return color[d.group];});
+    sel.attr("r",r);
 }
 
 //-----------------End draw methods------------------
@@ -220,11 +252,7 @@ sapdash.set_value = function(new_value){
         };
     }
     orders.value = Object.keys(graph.nodes).sort(function(a, b) { 
-        var bval = value(graph.nodes[b]);
-        var aval = value(graph.nodes[a]);
-        if (aval === "") aval = 0;
-        if (bval === "") bval = 0;
-        return bval - aval;});
+        return value(graph.nodes[b]) - value(graph.nodes[b]);});
     var t = svg.transition().duration(500);
     t.selectAll("circle")
         .attr("r", value);
@@ -262,9 +290,9 @@ function processData(graph){
 function getOrders(graph){
     return {
         name:   Object.keys(graph.nodes).sort(),
-        group:  Object.keys(graph.nodes).sort(function(a, b) { return graph.nodes[b].group - graph.nodes[a].group;}),
+        group:  Object.keys(graph.nodes).sort(function(a, b) { return graph.nodes[a].group.localeCompare(graph.nodes[b].group);}),
         degree: Object.keys(graph.nodes).sort(function(a, b) { return graph.nodes[b].degree - graph.nodes[a].degree;}),
-        value:  Object.keys(graph.nodes).sort(function(a, b) { return graph.nodes[b].group - graph.nodes[a].group;}),
+        value:  Object.keys(graph.nodes).sort(function(a, b) { return value(graph.nodes[b]) - value(graph.nodes[b]);})
     };
 }
 
@@ -284,12 +312,14 @@ function getBezierSvg(d){
     var x1, x2, rel_dist, ycontrol, center;
     x1 = x(d.source.id);
     x2 = x(d.target.id);
+
+    // Want x1 to be within viewport (bug if pen is moved too far out of view)
+    if(x1 > width || x1 < 0) x1 = [x2, x2 = x1][0]; //Swap if x1 not in viewport
+    
     rel_dist = Math.abs(x1 - x2) / width; 
     ycontrol = yfixed * (1 - rel_dist);
     center = (x1 + x2)/2;
-    // var s = "M" + x1 + "," + yfixed + "Q" + center + " " + ycontrol + " " + x2 + " " + yfixed; 
-    var s = "M" + x1 + "," + yfixed + "Q" + center + "," + ycontrol + "," + x2 + "," + yfixed; 
-    return s;
+    return "M" + x1 + " " + yfixed + " Q " + center + " " + ycontrol + ", " + x2 + " " + yfixed;
 }
 
 // Generates a tooltip for a SVG circle element based on its ID
@@ -323,16 +353,6 @@ function addTooltip(circle) {
     }
 }
 
-
-// function get_parents(elem){
-//     if (!elem.parents || elem.parents.length === 0) return [];
-//     var p = elem.parents;
-//     elem.parents.forEach(function(d){
-//         p.concat(get_parents(d));
-//     });
-//     return p;
-// }
-
 function viewable(d){
     return (x(d) > -width && x(d) < width*2); 
 }
@@ -344,7 +364,8 @@ function reset_color(){
         .style("fill",function(d) {return color[d.group];});    
 }
 
-function make_parent_links(node){
+
+function makeParentLinks(node){
     var l = [];
     if(node.parents){
         node.parents.forEach(function(d){
@@ -354,7 +375,24 @@ function make_parent_links(node){
     return l;
 }
 
-function make_child_links(node){
+
+function getFamilyString(node){
+    var l = ["#"+node.id];
+    if(node.parents){
+        node.parents.forEach(function(d){
+            l.push("#"+d.id);
+        });
+    }
+    if(node.children){
+        node.children.forEach(function(d){
+            l.push("#"+d.id);
+        });
+    }
+    return l.toString();
+}
+
+
+function makeChildLinks(node){
     var l = [];
     if(node.children){
         node.children.forEach(function(c){
