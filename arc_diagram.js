@@ -12,11 +12,13 @@ var yfixed = height - margin  - yoffset;  // y position for all nodes
 var default_radius = 12;
 
 // Get colours
-var groups = ["PROG","TCOD","VIEW","FUNC","TABL","INCL","METH","FUGR","TTAB","STRU","DTEL","TTYP"];
+// var groups = ["PROG","TCOD","VIEW","FUNC","TABL","INCL","METH","FUGR","TTAB","STRU","DTEL","TTYP"];
+var groups = [];
+var idsByGroup = {};
+
 var color = {};
 var dark_color = {};
-var light_color = {};
-groups.forEach(function(d,i){var c = d3.scale.category20().range()[i];color[d] = c;dark_color[d] = tinycolor(c).darken(10); light_color[d] = tinycolor(c).lighten(10);});
+
 
 var x = d3.scale.ordinal().rangeBands([margin,width - margin]);
 var value = function(d){return default_radius;};
@@ -30,6 +32,15 @@ sapdash.init = function(data,opts){
     
     // Prepare Data
     graph = processData(data);
+
+    // Set colors
+    groups = Object.keys(idsByGroup);
+    groups.forEach(function(d,i){
+        var c = d3.scale.category20().range()[i];
+        color[d] = c;
+        dark_color[d] = tinycolor(c).darken(10); 
+    }
+    );
 
     // Preprocess xaxis positions
     orders = getOrders(graph);
@@ -74,9 +85,7 @@ sapdash.init = function(data,opts){
             .attr("id","mask")
             .attr("width", width)
             .attr("height", yfixed)
-            .style("stroke","#888888")
-            .style("stroke-width",1)
-            .style("fill-opacity",0.45)
+            .style("fill-opacity",0)
             .attr("fill","white");
     
     // highlight path layer
@@ -163,7 +172,7 @@ function drawNodes(nodes) {
                 d3.selectAll(getFamilyString(d)).each(unhighlightNode);                
             }
             })
-        .on("click", showFamily);
+        .on("click", handleClick);
 
     circles.exit().style("opacity",0.05);
     }
@@ -214,12 +223,13 @@ function unhighlightNode(d){
     sel.attr("r",r);
 }
 
-function showFamily(d){
+function handleClick(d){
     if(d === focalNode){
         d3.selectAll(".node")
             .style("opacity",1)
             .style("stroke", function(d) { return dark_color[d.group]; })
             .attr("r",  value );
+        d3.select("#mask").style("fill-opacity",0);
         focalNode = null;
     }
     else{
@@ -234,6 +244,7 @@ function showFamily(d){
                 links.push({source:f.parent,target:f});
             }
         });
+        d3.select("#mask").style("fill-opacity",0.55);
         showSubgraph(focalSet,links);
         focalNode = d;
     }
@@ -300,9 +311,17 @@ sapdash.set_value = function(new_value){
             else return default_radius;
         };
     }
-    orders.value = Object.keys(graph.nodes).sort(function(a, b) { 
-        return value(graph.nodes[b]) - value(graph.nodes[a]);
-    });
+
+    // Recalculate values (This should be refactored)
+    orders.value = [];
+    var mapCallback = function(d){return group+d;};
+    var valueSort =  function(a, b) { return value(graph.nodes[b]) - value(graph.nodes[a]);};
+
+    for (var group in idsByGroup) {
+        var spacer = d3.range(5).map(mapCallback);
+        orders.value  = orders.value.concat(idsByGroup[group].sort(valueSort)).concat(spacer);
+    }
+
     var t = svg.transition().duration(500);
     t.selectAll("circle")
         .attr("r", value);
@@ -318,6 +337,12 @@ function processData(graph){
             node.degree   = 0;
             node.parents  = [];
             node.children = [];
+
+        // load idsByGroup global
+        if(idsByGroup[graph.nodes[key].group]) idsByGroup[graph.nodes[key].group].push(key);
+        else{
+            idsByGroup[graph.nodes[key].group] = [key];
+        }
     }
      // Filter links with null source/target
     graph.links = graph.links.filter(function(d){
@@ -339,12 +364,24 @@ function processData(graph){
 }
 
 function getOrders(graph){
-    return {
-        name:   Object.keys(graph.nodes).sort(),
-        group:  Object.keys(graph.nodes).sort(function(a, b) { return graph.nodes[a].group.localeCompare(graph.nodes[b].group);}),
-        degree: Object.keys(graph.nodes).sort(function(a, b) { return graph.nodes[b].degree - graph.nodes[a].degree;}),
-        value:  Object.keys(graph.nodes).sort(function(a, b) { return value(graph.nodes[b]) - value(graph.nodes[a]);})
-    };
+    // Helper sort functions
+    var degreeSort = function(a, b) { return graph.nodes[b].degree - graph.nodes[a].degree;};
+    var valueSort =  function(a, b) { return value(graph.nodes[b]) - value(graph.nodes[a]);};
+    var mapCallback = function(d){return group+d;};
+
+   
+    var finalPosition = {name:[], degree:[], value:[]};
+
+    // Used for spacing
+
+    for (var group in idsByGroup) {
+        var spacer = d3.range(5).map(mapCallback);
+        finalPosition.name   = finalPosition.name.concat(idsByGroup[group].sort()).concat(spacer);
+        finalPosition.degree = finalPosition.degree.concat(idsByGroup[group].sort(degreeSort)).concat(spacer);
+        finalPosition.value  = finalPosition.value.concat(idsByGroup[group].sort(valueSort)).concat(spacer);
+    }
+
+    return finalPosition;
 }
 
 
@@ -441,14 +478,6 @@ function getFamilyString(node){
     return l.toString();
 }
 
-// function getSelectorStringFromArray(arr){
-//     var l = [];
-//     arr.forEach(function(elem) {
-//          l.push("#"+elem.id);
-//      }); 
-//     return l.toString();
-// }
-
 function makeChildLinks(node){
     var l = [];
     if(node.children){
@@ -463,7 +492,7 @@ function makeChildLinks(node){
 function getAllParentsAndChildren(d){
     var fam = [d];
 
-    function getAllParentsRecursive(caller){
+    function getAllParentsRecurs    ive(caller){
         var parents = caller.parents;
         parents.forEach(function(p) {
             if(!_.contains(fam,p)){
