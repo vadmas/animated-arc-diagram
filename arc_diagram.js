@@ -492,7 +492,7 @@ function makeChildLinks(node){
 function getAllParentsAndChildren(d){
     var fam = [d];
 
-    function getAllParentsRecurs    ive(caller){
+    function getAllParentsRecursive(caller){
         var parents = caller.parents;
         parents.forEach(function(p) {
             if(!_.contains(fam,p)){
