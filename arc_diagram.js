@@ -9,20 +9,20 @@ var height = 400;             // height of svg image
 var margin = 20;              // amount of margin around plot area
 var yoffset = 30;             // Offset from bottom
 var yfixed = height - margin  - yoffset;  // y position for all nodes
+var default_radius = 12;
 
 // Get colours
-var groups = ["PROG","VIEW","FUNC","TCOD","TTAB","STRU","TABL","DTEL","TTYP","INCL","METH","FUGR"];
+var groups = ["PROG","TCOD","VIEW","FUNC","TABL","INCL","METH","FUGR","TTAB","STRU","DTEL","TTYP"];
 var color = {};
 var dark_color = {};
 var light_color = {};
-groups.forEach(function(d,i){var c = d3.scale.category20c().range()[i];color[d] = c;dark_color[d] = tinycolor(c).darken(10); light_color[d] = tinycolor(c).lighten(10);});
-
-var default_radius = 12;
+groups.forEach(function(d,i){var c = d3.scale.category20().range()[i];color[d] = c;dark_color[d] = tinycolor(c).darken(10); light_color[d] = tinycolor(c).lighten(10);});
 
 var x = d3.scale.ordinal().rangeBands([margin,width - margin]);
 var value = function(d){return default_radius;};
 var svg, canvas, orders, graph, options;
 
+var focalNode;
 
 sapdash.init = function(data,opts){
     options = opts || {};
@@ -48,10 +48,7 @@ sapdash.init = function(data,opts){
     svg = d3.select(".svg")
         .attr("id", "arc")
         .attr("width", width)
-        .attr("height", height)
-        .call(d3.behavior.zoom()
-            .scaleExtent([1, 10000])
-            .on("zoom", zoom));
+        .attr("height", height);
 
     // draw border around svg image
     svg.append("rect")
@@ -90,23 +87,25 @@ sapdash.init = function(data,opts){
     svg.append("g")
         .attr('id', "nodes");
 
-    // // highlight node layer
-    // svg.append("g")
-    //     .attr('id', "highlight-node-layer");
-
     // draw links 
     if(options.show_links) drawLinks(graph.links);
 
     // draw nodes 
     drawNodes(graph.nodes);
 
-    // Grab mynodes for zoom
-    var myNodes = svg.selectAll(".node");
+    // Set up zoom
 
-    function zoom(){    
-        var s = d3.event.scale;
-        var t = d3.event.translate[0];
+    // Grab selection outside of zoom loop
+    var myNodes = svg.selectAll(".node");
+    var zoom = d3.behavior.zoom().scaleExtent([1, 5000]).on("zoom", zoomed);
+    svg.call(zoom);
+    function zoomed(){    
+        var s = zoom.scale();
+        var t = zoom.translate()[0];
+        
         var tx = Math.min(0, Math.max(width * (1 - s), t));
+        zoom.translate([tx, 0]);
+
         var xmin = margin + tx;
         var xmax = tx + s*(width - margin);
         x.rangeBands([xmin,xmax]);
@@ -139,25 +138,34 @@ function drawNodes(nodes) {
         .attr("cy", yfixed )
         .attr("r",  value )
         .on("mouseover", function(d){
-            highlightNode(d);
             addTooltip(d3.select(this));
+            
+            if(!focalNode){
+                highlightNode(d);
+            }
         })
-        .on("mouseover.highlightPath", highlightPath) 
+        .on("mouseover.highlightPath", function(d){
+            if(!focalNode){
+               var pathdata = makeParentLinks(d).concat(makeChildLinks(d));
+               highlightPath(pathdata);
+            }
+        }) 
         .on("mouseover.highlightFamily", function(d){
-            d3.selectAll(getFamilyString(d)).each(highlightNode);
+            if(!focalNode){
+                d3.selectAll(getFamilyString(d)).each(highlightNode);
+            }
         }) 
         .on("mouseout",  function(d) { 
-            unhighlightNode(d);
-            d3.select("#tooltip").remove(); 
-            d3.selectAll(".highlight").remove();
-            d3.selectAll(getFamilyString(d)).each(unhighlightNode);                
-        })
-        .on("click",  function(d) { 
-            console.log("click");
-        });
+                d3.select("#tooltip").remove(); 
+            if(!focalNode){
+                unhighlightNode(d);
+                d3.selectAll(".highlight").remove();
+                d3.selectAll(getFamilyString(d)).each(unhighlightNode);                
+            }
+            })
+        .on("click", showFamily);
 
-    circles.exit().remove();
-
+    circles.exit().style("opacity",0.05);
     }
 
 // Draws arcs for each link on plot
@@ -171,12 +179,10 @@ function drawLinks(links) {
 }
 
 // Draw highlight arc on hover
-function highlightPath(d){
-    var pathdata = makeParentLinks(d).concat(makeChildLinks(d));
-    var nodedata = [d].concat(d.parents).concat(d.children);
-
+function highlightPath(data){
+    d3.selectAll(".highlight").remove();
     var path = d3.select("#highlight-path-layer").selectAll(".highlight")
-        .data(pathdata);
+        .data(data);
     path.enter()
         .append("path")
         .attr("class", "highlight")
@@ -185,8 +191,6 @@ function highlightPath(d){
         .style("fill",  "none")
         .attr("d", getBezierSvg);
     path.exit().remove();
-
-
 }
 
 // Highlight node
@@ -196,18 +200,63 @@ function highlightNode(d){
     sel.style("stroke","yellow");
     sel.style("stroke-width",1.5);
     sel.style("fill", function(d){return dark_color[d.group];});
-    sel.attr("r",r);
+    sel.attr("r",function(d){return value(d)+3;});
     
 }
 
 // unhighlight node
 function unhighlightNode(d){
     var sel = d3.select("#" + d.id);
-    var r = +sel.attr("r") - 2.5;
+    var r = value(d);
     sel.style("stroke-width",1);
     sel.style("stroke", function(d) { return dark_color[d.group];});
     sel.style("fill", function(d){return color[d.group];});
     sel.attr("r",r);
+}
+
+function showFamily(d){
+    if(d === focalNode){
+        d3.selectAll(".node")
+            .style("opacity",1)
+            .style("stroke", function(d) { return dark_color[d.group]; })
+            .attr("r",  value );
+        focalNode = null;
+    }
+    else{
+        focalSet = getAllParentsAndChildren(d);
+
+        var links = [];
+        focalSet.forEach(function(f) {
+            if(f.child){
+                links.push({source:f,target:f.child});
+            }
+            else if(f.parent){
+                links.push({source:f.parent,target:f});
+            }
+        });
+        showSubgraph(focalSet,links);
+        focalNode = d;
+    }
+}
+
+function showSubgraph(nodes,links){
+    d3.selectAll(".node")
+        .each(function(d){
+            var sel = d3.select(this);
+            if(nodes.indexOf(d) === -1){
+                sel.style("opacity",0.05);
+                var r = value(d);
+                sel.style("stroke-width",1);
+                sel.style("stroke", function(d) { return dark_color[d.group];});
+                sel.style("fill", function(d){return color[d.group];});
+                sel.attr("r",r);
+            }
+            else{
+                sel.style("opacity",1);
+                highlightNode(d);
+            }
+        });
+    highlightPath(links);
 }
 
 //-----------------End draw methods------------------
@@ -230,7 +279,7 @@ sapdash.change_order = function(order){
                     drawArc(x(d.id),x(c.id),color[c.group]);
                 });
             }
-    });   
+        });   
 };
 
 sapdash.show_links = function(bool){
@@ -252,11 +301,13 @@ sapdash.set_value = function(new_value){
         };
     }
     orders.value = Object.keys(graph.nodes).sort(function(a, b) { 
-        return value(graph.nodes[b]) - value(graph.nodes[b]);});
+        return value(graph.nodes[b]) - value(graph.nodes[a]);
+    });
     var t = svg.transition().duration(500);
     t.selectAll("circle")
         .attr("r", value);
 };
+
 
 //-----------------End public methods------------------
 
@@ -292,7 +343,7 @@ function getOrders(graph){
         name:   Object.keys(graph.nodes).sort(),
         group:  Object.keys(graph.nodes).sort(function(a, b) { return graph.nodes[a].group.localeCompare(graph.nodes[b].group);}),
         degree: Object.keys(graph.nodes).sort(function(a, b) { return graph.nodes[b].degree - graph.nodes[a].degree;}),
-        value:  Object.keys(graph.nodes).sort(function(a, b) { return value(graph.nodes[b]) - value(graph.nodes[b]);})
+        value:  Object.keys(graph.nodes).sort(function(a, b) { return value(graph.nodes[b]) - value(graph.nodes[a]);})
     };
 }
 
@@ -375,7 +426,6 @@ function makeParentLinks(node){
     return l;
 }
 
-
 function getFamilyString(node){
     var l = ["#"+node.id];
     if(node.parents){
@@ -391,6 +441,13 @@ function getFamilyString(node){
     return l.toString();
 }
 
+// function getSelectorStringFromArray(arr){
+//     var l = [];
+//     arr.forEach(function(elem) {
+//          l.push("#"+elem.id);
+//      }); 
+//     return l.toString();
+// }
 
 function makeChildLinks(node){
     var l = [];
@@ -401,6 +458,38 @@ function makeChildLinks(node){
     }
     return l;
 }
+
+
+function getAllParentsAndChildren(d){
+    var fam = [d];
+
+    function getAllParentsRecursive(caller){
+        var parents = caller.parents;
+        parents.forEach(function(p) {
+            if(!_.contains(fam,p)){
+                p.child = caller;
+                fam.push(p);
+                getAllParentsRecursive(p);
+            }
+        });
+    }
+    function getAllChildrenRecursive(caller){
+        var children = caller.children;
+        children.forEach(function(c) {
+            if(!_.contains(fam,c)){
+                c.parent = caller;
+                fam.push(c);
+                getAllChildrenRecursive(c);
+            }
+        });
+    }
+
+    getAllParentsRecursive(d);
+    getAllChildrenRecursive(d);
+
+    return fam;
+}
+
 
 
 //-----------------End helper methods------------------
