@@ -124,9 +124,15 @@ sapdash.init = function(data,opts){
             drawLinks(graph.links);
             canvas.restore();       
         }
+
         myNodes.attr("cx", function(d) { return x(d.id);});
-        d3.selectAll(".highlight")
+        d3.selectAll(".highlight,.focal_highlight")
             .attr("d", getBezierSvg);
+        
+        d3.selectAll(".tooltip, .focaltip")
+            .each(function(){
+                d3.select(this).attr("x",x(this.textContent));
+            });
     }
 };
 
@@ -147,26 +153,25 @@ function drawNodes(nodes) {
         .attr("cy", yfixed )
         .attr("r",  value )
         .on("mouseover", function(d){
-            addTooltip(d3.select(this));
-            
-            if(!focalNode){
+           if(d != focalNode){
+                addTooltip(d);
                 highlightNode(d);
             }
         })
         .on("mouseover.highlightPath", function(d){
-            if(!focalNode){
+           if(d != focalNode){
                var pathdata = makeParentLinks(d).concat(makeChildLinks(d));
                highlightPath(pathdata);
             }
         }) 
         .on("mouseover.highlightFamily", function(d){
-            if(!focalNode){
+            if(d != focalNode){
                 d3.selectAll(getFamilyString(d)).each(highlightNode);
             }
         }) 
         .on("mouseout",  function(d) { 
-                d3.select("#tooltip").remove(); 
-            if(!focalNode){
+           if(d != focalNode){
+                d3.selectAll(".tooltip").remove(); 
                 unhighlightNode(d);
                 d3.selectAll(".highlight").remove();
                 d3.selectAll(getFamilyString(d)).each(unhighlightNode);                
@@ -207,20 +212,23 @@ function highlightNode(d){
     var sel = d3.select("#" + d.id);
     var r = +sel.attr("r") + 2.5;
     sel.style("stroke","yellow");
+    sel.style("opacity",1);
     sel.style("stroke-width",1.5);
     sel.style("fill", function(d){return dark_color[d.group];});
     sel.attr("r",function(d){return value(d)+3;});
-    
 }
 
 // unhighlight node
 function unhighlightNode(d){
     var sel = d3.select("#" + d.id);
     var r = value(d);
+    var op = +sel.attr("default-opacity");
     sel.style("stroke-width",1);
     sel.style("stroke", function(d) { return dark_color[d.group];});
     sel.style("fill", function(d){return color[d.group];});
     sel.attr("r",r);
+    sel.style("opacity",op);
+
 }
 
 function handleClick(d){
@@ -228,8 +236,12 @@ function handleClick(d){
         d3.selectAll(".node")
             .style("opacity",1)
             .style("stroke", function(d) { return dark_color[d.group]; })
-            .attr("r",  value );
+            .attr("r",  value )
+            .attr("default-opacity",1);
+
         d3.select("#mask").style("fill-opacity",0);
+        d3.selectAll(".focaltip").remove(); 
+        d3.selectAll(".focal_highlight").remove();
         focalNode = null;
     }
     else{
@@ -245,8 +257,17 @@ function handleClick(d){
             }
         });
         d3.select("#mask").style("fill-opacity",0.55);
+
         showSubgraph(focalSet,links);
         focalNode = d;
+
+        // Change tooltip
+        d3.selectAll(".tooltip, .focaltip").remove(); 
+        addTooltip(d);
+        d3.selectAll(".tooltip")
+            .attr("class","focaltip")
+            .attr("dy", margin*1.5);
+
     }
 }
 
@@ -256,6 +277,7 @@ function showSubgraph(nodes,links){
             var sel = d3.select(this);
             if(nodes.indexOf(d) === -1){
                 sel.style("opacity",0.05);
+                sel.attr("default-opacity",0.05);
                 var r = value(d);
                 sel.style("stroke-width",1);
                 sel.style("stroke", function(d) { return dark_color[d.group];});
@@ -264,10 +286,13 @@ function showSubgraph(nodes,links){
             }
             else{
                 sel.style("opacity",1);
+                sel.attr("default-opacity",1);
                 highlightNode(d);
             }
         });
+    d3.selectAll(".focal_highlight").remove();
     highlightPath(links);
+    d3.selectAll(".highlight").attr("class","focal_highlight");
 }
 
 //-----------------End draw methods------------------
@@ -279,18 +304,35 @@ sapdash.change_order = function(order){
     x.domain(orders[order]);
     canvas.save();
     canvas.clearRect(0, 0, width, height);
+    d3.select("#mask").style("fill-opacity",1);
     var t = svg.transition().duration(1000);
-
     t.selectAll("circle")
-        .delay(function(d,i){return i*0.5;})
-        .attr("cx", function(d) { return x(d.id); })
-        .each("end", function(d){
-            if(options.show_links && d.parents){
-                d.parents.forEach(function(c){
-                    drawArc(x(d.id),x(c.id),color[c.group]);
-                });
-            }
-        });   
+        // .delay(function(d,i){return i*0.5;})
+        .attr("cx", function(d) { return x(d.id); });
+        // .each("end", function(d){
+        //     if(options.show_links && d.parents){
+        //         d.parents.forEach(function(c){
+        //             drawArc(x(d.id),x(c.id),color[c.group]);
+        //         });
+        //     }
+        // });  
+    t.selectAll(".highlight,.focal_highlight")
+        .attr("d", getBezierSvg);
+        
+    t.selectAll(".tooltip,.focaltip")
+            .each(function(){
+                d3.select(this).attr("x",x(this.textContent));
+            }); 
+    if(focalNode){
+        t.select("#mask").style("fill-opacity",0.55);   
+    }
+    else{
+        t.select("#mask").style("fill-opacity",0);   
+    }
+    canvas.save();
+    canvas.clearRect(0, 0, width, height);
+    drawLinks(graph.links);
+    canvas.restore();    
 };
 
 sapdash.show_links = function(bool){
@@ -368,7 +410,6 @@ function getOrders(graph){
     var degreeSort = function(a, b) { return graph.nodes[b].degree - graph.nodes[a].degree;};
     var valueSort =  function(a, b) { return value(graph.nodes[b]) - value(graph.nodes[a]);};
     var mapCallback = function(d){return group+d;};
-
    
     var finalPosition = {name:[], degree:[], value:[]};
 
@@ -411,35 +452,29 @@ function getBezierSvg(d){
 }
 
 // Generates a tooltip for a SVG circle element based on its ID
-function addTooltip(circle) {
-    var x = parseFloat(circle.attr("cx"));
-    var y = parseFloat(circle.attr("cy"));
-    var r = parseFloat(circle.attr("r"));
-    var text = circle.attr("id");
+function addTooltip(d) {
+    var xpos = x(d.id);
+    var text = d.id;
 
     var tooltip = d3.select("#plot")
         .append("text")
         .text(text)
-        .attr("x", x)
-        .attr("y", y)
-        .attr("dy", margin*1.5)
-        .attr("id", "tooltip");
+        .attr("x", xpos)
+        .attr("y", yfixed)
+        .attr("dy", margin*2)
+        .attr("class", "tooltip");
 
     var offset = tooltip.node().getBBox().width / 2;
 
-    if ((x - offset) < 0) {
-        tooltip.attr("text-anchor", "start");
-        tooltip.attr("dx", -r);
-    }
-    else if ((x + offset) > (width - margin)) {
-        tooltip.attr("text-anchor", "end");
-        tooltip.attr("dx", r);
-    }
+    if ((xpos - offset) < 0) {
+        tooltip.attr("text-anchor", "start");}
+    else if ((xpos + offset) > (width - margin)) {
+        tooltip.attr("text-anchor", "end");}
     else {
         tooltip.attr("text-anchor", "middle");
-        tooltip.attr("dx", 0);
     }
 }
+
 
 function viewable(d){
     return (x(d) > -width && x(d) < width*2); 
