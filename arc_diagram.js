@@ -4,8 +4,8 @@ sapdash = {};
 
 /* GLOBALS */
 
-var width  = 1200;             // width of svg image
-var height = 400;             // height of svg image
+var width  = 1250;             // width of svg image
+var height = 250;             // height of svg image
 var margin = 20;              // amount of margin around plot area
 var yoffset = 30;             // Offset from bottom
 var yfixed = height - margin  - yoffset;  // y position for all nodes
@@ -26,7 +26,7 @@ var svg, canvas, orders, graph, options;
 
 var focalNode;
 
-sapdash.init = function(data,opts){
+sapdash.init = function(data,opts,container_id){
     options = opts || {};
     options.show_links = options.show_links  || true;
     
@@ -48,16 +48,20 @@ sapdash.init = function(data,opts){
     // Set domain
     x.domain(orders.name);
 
-    canvas = d3.select("canvas")
-       .attr("width",width)
-       .attr("height",height)
-       .node().getContext("2d");
+    canvas = d3.select(container_id)
+        .append("canvas")
+        .attr("id","background")
+        .attr("width",width)
+        .attr("height",height)
+        .node().getContext("2d");
     
     canvas.globalAlpha=0.5;
 
     // create svg image
-    svg = d3.select(".svg")
+    svg = d3.select(container_id)
+        .append("svg")
         .attr("id", "arc")
+        .attr("class","svg")
         .attr("width", width)
         .attr("height", height);
 
@@ -149,6 +153,7 @@ function drawNodes(nodes) {
         .attr("id", function(d) { return d.id; })
         .style("fill",   function(d) { return color[d.group]; })
         .style("stroke", function(d) { return dark_color[d.group]; })
+        .attr("default-opacity",1)
         .attr("cx", function(d) { return x(d.id);})
         .attr("cy", yfixed )
         .attr("r",  value )
@@ -171,7 +176,7 @@ function drawNodes(nodes) {
         }) 
         .on("mouseout",  function(d) { 
            if(d != focalNode){
-                d3.selectAll(".tooltip").remove(); 
+                d3.selectAll(".nodename").remove(); 
                 unhighlightNode(d);
                 d3.selectAll(".highlight").remove();
                 d3.selectAll(getFamilyString(d)).each(unhighlightNode);                
@@ -264,7 +269,7 @@ function handleClick(d){
         // Change tooltip
         d3.selectAll(".tooltip, .focaltip").remove(); 
         addTooltip(d);
-        d3.selectAll(".tooltip")
+        d3.selectAll(".nodename")
             .attr("class","focaltip")
             .attr("dy", margin*1.5);
 
@@ -307,15 +312,8 @@ sapdash.change_order = function(order){
     d3.select("#mask").style("fill-opacity",1);
     var t = svg.transition().duration(1000);
     t.selectAll("circle")
-        // .delay(function(d,i){return i*0.5;})
         .attr("cx", function(d) { return x(d.id); });
-        // .each("end", function(d){
-        //     if(options.show_links && d.parents){
-        //         d.parents.forEach(function(c){
-        //             drawArc(x(d.id),x(c.id),color[c.group]);
-        //         });
-        //     }
-        // });  
+
     t.selectAll(".highlight,.focal_highlight")
         .attr("d", getBezierSvg);
         
@@ -323,16 +321,19 @@ sapdash.change_order = function(order){
             .each(function(){
                 d3.select(this).attr("x",x(this.textContent));
             }); 
-    if(focalNode){
-        t.select("#mask").style("fill-opacity",0.55);   
-    }
-    else{
-        t.select("#mask").style("fill-opacity",0);   
-    }
-    canvas.save();
-    canvas.clearRect(0, 0, width, height);
-    drawLinks(graph.links);
-    canvas.restore();    
+    if(options.show_links){
+
+        if(focalNode){
+            t.select("#mask").style("fill-opacity",0.55);   
+        }
+        else{
+            t.select("#mask").style("fill-opacity",0);   
+        }
+        canvas.save();
+        canvas.clearRect(0, 0, width, height);
+        drawLinks(graph.links);
+        canvas.restore();    
+    }            
 };
 
 sapdash.show_links = function(bool){
@@ -429,7 +430,7 @@ function getOrders(graph){
 function drawArc(x1,x2,color){
      canvas.beginPath();
      var rel_dist = Math.abs(x1 - x2) / width; 
-     var ycontrol = yfixed * (1 - rel_dist);
+     var ycontrol = yfixed * (1 - 2*rel_dist);
      var center = (x1 + x2)/2;
      canvas.moveTo(x1,yfixed);
      canvas.quadraticCurveTo(center, ycontrol, x2, yfixed);
@@ -446,7 +447,7 @@ function getBezierSvg(d){
     if(x1 > width || x1 < 0) x1 = [x2, x2 = x1][0]; //Swap if x1 not in viewport
     
     rel_dist = Math.abs(x1 - x2) / width; 
-    ycontrol = yfixed * (1 - rel_dist);
+    ycontrol = yfixed * (1 - 2*rel_dist);
     center = (x1 + x2)/2;
     return "M" + x1 + " " + yfixed + " Q " + center + " " + ycontrol + ", " + x2 + " " + yfixed;
 }
@@ -462,7 +463,7 @@ function addTooltip(d) {
         .attr("x", xpos)
         .attr("y", yfixed)
         .attr("dy", margin*2)
-        .attr("class", "tooltip");
+        .attr("class", "nodename");
 
     var offset = tooltip.node().getBBox().width / 2;
 

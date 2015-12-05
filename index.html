@@ -11,9 +11,8 @@
 
 <!-- CSS Style //-->
 <link href="http://fonts.googleapis.com/css?family=Source+Sans+Pro:300,900|Source+Code+Pro:300" rel="stylesheet" type="text/css">
-<link href="style.css" rel="stylesheet" type="text/css">
+<link href="css/style.css" rel="stylesheet" type="text/css">
 
-   <link href="style.css" rel="stylesheet">
  </head>
  <body>
    
@@ -31,15 +30,12 @@
       <option value="p_viol_d">P_Viol_D</option>
    </select>
    <input type="checkbox" id="links_checkbox" value="hide_links">Hide Links<br>
-   <div id="chart">
-      <canvas id="background"></canvas>
-      <svg class="svg"></svg>
-   </div>
+   <div id="chart"></div>
    <script type="text/javascript" src="arc_diagram.js"></script>
    <script>
    
    d3.json("data/ps_data.json", function(json){
-      sapdash.init(json);
+      sapdash.init(json,{},"#chart");
    });
 
    d3.select("#order").on("change", function() {

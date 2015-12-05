@@ -13,9 +13,10 @@ b {
     stroke-width: 1px;
 }
 
-.tooltip {
+.nodename {
     font-size: 10pt;
     font-weight: 700;
+    fill: black;
     stroke: #ffffff;
     stroke-width: 0.25px;
 }
@@ -23,7 +24,7 @@ b {
 .focaltip {
     font-size: 10pt;
     font-weight: 900;
-    fill: red;
+    fill: blue;
     stroke: #eeeeee;
     stroke-width: 0.25px;
 }
@@ -40,6 +41,23 @@ b {
     stroke-opacity: 0.5;
 }
 
+#focus {
+    /*height: 350px;*/
+    background: #F6F6F6;
+}
+
+#filterbar {
+    background: #EFEFEF;
+}
+
+#header {
+    background: #878787;
+}
+
+.top-buffer { 
+    margin-top:5px; 
+}
+
 .highlight {
     stroke: red;
     stroke-weight: 4px;
@@ -51,4 +69,10 @@ canvas, svg {
   top: 300;
   left: 300;
 }
+label {
+    margin-top: 5px;
+    display: inline-block; 
+}
+
+.input-mini { width: 60px; } .input-small { width: 90px; } .input-medium { width: 220px; } .input-large { width: 210px; } .input-xlarge { width: 270px; } .input-xxlarge { width: 530px; }
 
