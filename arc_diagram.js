@@ -316,10 +316,8 @@ sapdash.change_order = function(order){
     var t = svg.transition().duration(1500);
     t.selectAll("circle")
         .attr("cx", function(d) { return x(d.id); });
-
     t.selectAll(".highlight,.focal_highlight")
         .attr("d", getBezierSvg);
-        
     t.selectAll(".tooltip,.focaltip")
             .each(function(){
                 d3.select(this).attr("x",x(this.textContent));
@@ -357,7 +355,6 @@ sapdash.set_value = function(new_value){
             else return default_radius;
         };
     }
-
     // Recalculate values (This should be refactored)
     orders.value = [];
     var mapCallback = function(d){return group+d;};

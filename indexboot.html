@@ -69,21 +69,32 @@
 						     <option value="value">Value</option>
 						 </select>
 					</div>
+					<div class="top-buffer" id="valueDiv">
+				    	<label class="control-label text-left input-mini">Value</label>
+					     <select class="form-control input-medium top-buffer" style="margin-top: 15px;" id="valueSelect">
+							 <option value="none">None</option>
+						     <option value="performance">Performance</option>
+						     <option value="loc">Loc</option>
+						     <option value="dbrows">DBrows</option>
+						     <option value="usage">Usage</option>
+						     <option value="p_viol_d">P_Viol_D</option>
+						 </select>
+					</div>
 					<div class="top-buffer" id="orderDiv">
 				    	<label class="control-label text-left input-mini">Order</label>
 					     <select class="form-control input-medium top-buffer" style="margin-top: 15px;" id="orderSelect" multiple="multiple">
-							<option>PROG</option>
-							<option>TCOD</option>
-							<option>VIEW</option>
-							<option>FUNC</option>
-							<option>TABL</option>
-							<option>INCL</option>
-							<option>METH</option>
-							<option>FUGR</option>
-							<option>TTAB</option>
-							<option>STRU</option>
-							<option>DTEL</option>
-							<option>TTYP</option>
+							<option selected='selected'>PROG</option>
+							<option selected='selected'>TCOD</option>
+							<option selected='selected'>VIEW</option>
+							<option selected='selected'>FUNC</option>
+							<option selected='selected'>TABL</option>
+							<option selected='selected'>INCL</option>
+							<option selected='selected'>METH</option>
+							<option selected='selected'>FUGR</option>
+							<option selected='selected'>TTAB</option>
+							<option selected='selected'>STRU</option>
+							<option selected='selected'>DTEL</option>
+							<option selected='selected'>TTYP</option>
 						 </select>
 					</div>
 				<div class="checkbox">
@@ -119,12 +130,12 @@
           handleSelected(data.selected);
       });
 
-  // var ob = $('#sortSelect');
-  //   ob.multiselect({
-  //   });
+ 
+  $('#valueSelect').multiselect().change(function() {
+    sapdash.set_value($(this).val());
+	});
 
   $('#sortSelect').multiselect().change(function() {
-  	console.log("selected");
     sapdash.change_order($(this).val());
 });
 
