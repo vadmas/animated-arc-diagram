@@ -1,8 +1,9 @@
 body {
     font-family: 'Source Sans Pro', sans-serif;
     font-weight: 300;
+    /*background-color: #E0E0E0*/
+    background-color: #D0D0D0
 }
-
 b {
     font-weight: 900;
 }
@@ -42,21 +43,28 @@ b {
 }
 
 #focus {
-    /*height: 350px;*/
-    background: #F6F6F6;
+    height: 350px;
+    background: #F0F0F0;
 }
 
 #filterbar {
-    background: #EFEFEF;
+    height: 350px;
+    background: #E0E0E0;
 }
 
 #header {
     background: #878787;
 }
 
+.chart {
+    height:300px;
+    background: #F0F0F0;
+}
+
 .top-buffer { 
     margin-top:5px; 
 }
+
 
 .highlight {
     stroke: red;

@@ -29,6 +29,9 @@ var focalNode;
 sapdash.init = function(data,opts,container_id){
     options = opts || {};
     options.show_links = options.show_links  || true;
+    width = d3.select(container_id).node().getBoundingClientRect().width - 1;
+    height = width * 0.2;
+
     
     // Prepare Data
     graph = processData(data);
@@ -90,7 +93,7 @@ sapdash.init = function(data,opts,container_id){
             .attr("width", width)
             .attr("height", yfixed)
             .style("fill-opacity",0)
-            .attr("fill","white");
+            .attr("fill","#F0F0F0");
     
     // highlight path layer
     svg.append("g")
@@ -310,7 +313,7 @@ sapdash.change_order = function(order){
     canvas.save();
     canvas.clearRect(0, 0, width, height);
     d3.select("#mask").style("fill-opacity",1);
-    var t = svg.transition().duration(1000);
+    var t = svg.transition().duration(1500);
     t.selectAll("circle")
         .attr("cx", function(d) { return x(d.id); });
 

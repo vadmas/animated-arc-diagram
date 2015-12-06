@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>Bootstrap 3, from LayoutIt!</title>
+    <title>SAP Dashboard</title>
 
     <meta name="Vaden Masrani" content="D3Dashboard">
 
@@ -64,11 +64,9 @@
 					<div class="top-buffer" id="sortDiv">
 						<label class="control-label text-left input-mini" >Sort</label>
 					     <select class="form-control input-medium top-buffer" style="margin-top: 15px;" id="sortSelect">
-							  <option>Name</option>
-							  <option>Degree</option>
-							  <option>Value</option>
-							  <option>Start Date</option>
-							  <option>End Date</option>
+							 <option value="name">Name</option>
+						     <option value="degree">Degree</option>
+						     <option value="value">Value</option>
 						 </select>
 					</div>
 					<div class="top-buffer" id="orderDiv">
@@ -90,8 +88,8 @@
 					</div>
 				<div class="checkbox">
 				  <label class="input-medium">
-				    <input type="checkbox" value="">
-				    Show lines
+				    <input type="checkbox" value="" id="links_checkbox">
+				    Hide lines
 				  </label>
 				</div>
 				</div>
@@ -103,15 +101,13 @@
 			</div>
 		</div>
 	</div>
-	<div class="row">
-		<div class="col-md-12">
-			<div id="arc_diagram"></div>
-		</div>
+	<div class="row top-buffer chart">
+		<div id="arc_diagram"></div>
 	</div>
 </div>
 
 <script type="text/javascript" src="arc_diagram.js"></script>
-   <script>
+<script>
    
   var mySlider = $("#performanceSlider").slider();
   var mySlider = $("#usageSlider").slider();
@@ -123,9 +119,14 @@
           handleSelected(data.selected);
       });
 
-  var ob = $('#sortSelect');
-    ob.multiselect({
-    });
+  // var ob = $('#sortSelect');
+  //   ob.multiselect({
+  //   });
+
+  $('#sortSelect').multiselect().change(function() {
+  	console.log("selected");
+    sapdash.change_order($(this).val());
+});
 
  //Configure multiselect widget
     var ob = $('#orderSelect');
@@ -142,11 +143,9 @@
   var list = document.getElementById("my-ui-list");
   Sortable.create(list); // That's all.
 
-
-
-   // d3.json("data/ps_data.json", function(json){
-   //    sapdash.init(json,{},"#arc_diagram");
-   // });
+  d3.json("data/ps_data.json", function(json){
+     sapdash.init(json,{},"#arc_diagram");
+  });
 
   //  d3.select("#order").on("change", function() {
   //     sapdash.change_order(this.value);
@@ -156,14 +155,14 @@
   //     sapdash.set_value(this.value);
   //  });
 
-  //  d3.select("#links_checkbox").on("change", function() {
-  //     if(this.checked){
-  //       sapdash.show_links(false);
-  //   }
-  //     else{
-  //       sapdash.show_links(true);
-  //   }
-  // });
+   d3.select("#links_checkbox").on("change", function() {
+      if(this.checked){
+        sapdash.show_links(false);
+    }
+      else{
+        sapdash.show_links(true);
+    }
+  });
 
    </script>
 
