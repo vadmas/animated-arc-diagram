@@ -14,15 +14,15 @@ var default_radius = 12;
 // Get colours
 // var groups = ["PROG","TCOD","VIEW","FUNC","TABL","INCL","METH","FUGR","TTAB","STRU","DTEL","TTYP"];
 var groups = [];
-var idsByGroup = {};
+var ids_by_group = {};
 
 var color = {};
 var dark_color = {};
 
-
 var x = d3.scale.ordinal().rangeBands([margin,width - margin]);
 var value = function(d){return default_radius;};
-var svg, canvas, orders, graph, options;
+var svg, canvas, positions, options;
+var nodes;
 
 var focalNode;
 
@@ -32,25 +32,15 @@ sapdash.init = function(data,opts,container_id){
     width = d3.select(container_id).node().getBoundingClientRect().width - 1;
     height = width * 0.2;
 
-    
-    // Prepare Data
-    graph = processData(data);
+    nodes = data;
 
+        
     // Set colors
-    groups = Object.keys(idsByGroup);
-    groups.forEach(function(d,i){
+    options.groups.forEach(function(d,i){
         var c = d3.scale.category20().range()[i];
         color[d] = c;
         dark_color[d] = tinycolor(c).darken(10); 
-    }
-    );
-
-    // Preprocess xaxis positions
-    orders = getOrders(graph);
-
-    // Set domain
-    x.domain(orders.name);
-
+    });
     canvas = d3.select(container_id)
         .append("canvas")
         .attr("id","background")
@@ -103,19 +93,16 @@ sapdash.init = function(data,opts,container_id){
     svg.append("g")
         .attr('id', "nodes");
 
-    // draw links 
-    if(options.show_links) drawLinks(graph.links);
-
     // draw nodes 
-    drawNodes(graph.nodes);
+    drawNodes();
 
     // Set up zoom
 
     // Grab selection outside of zoom loop
-    var myNodes = svg.selectAll(".node");
     var zoom = d3.behavior.zoom().scaleExtent([1, 5000]).on("zoom", zoomed);
     svg.call(zoom);
     function zoomed(){    
+        var myNodes = svg.selectAll(".node");
         var s = zoom.scale();
         var t = zoom.translate()[0];
         
@@ -125,15 +112,18 @@ sapdash.init = function(data,opts,container_id){
         var xmin = margin + tx;
         var xmax = tx + s*(width - margin);
         x.rangeBands([xmin,xmax]);
+        
         if(options.show_links){
             canvas.save();
             canvas.clearRect(0, 0, width, height);
-            drawLinks(graph.links);
+            myNodes.attr("cx", function(d) { return x(d.id);}).each(drawLinksToChildren);
             canvas.restore();       
         }
+        else{
+            myNodes.attr("cx", function(d) { return x(d.id);});
+        }
 
-        myNodes.attr("cx", function(d) { return x(d.id);});
-        d3.selectAll(".highlight,.focal_highlight")
+        d3.selectAll(".highlight, .focal_highlight")
             .attr("d", getBezierSvg);
         
         d3.selectAll(".tooltip, .focaltip")
@@ -146,7 +136,19 @@ sapdash.init = function(data,opts,container_id){
 //-----------------Draw methods------------------
 
 // Draws nodes on plot
-function drawNodes(nodes) {
+function drawNodes() {
+
+    // Preprocess xaxis positions
+    positions = setPositions();
+    // positions = setPositions(nodes);
+    canvas.save();
+    canvas.clearRect(0, 0, width, height);
+            
+    canvas.restore();  
+
+    // Set domain
+    x.domain(positions.name);
+
     // used to assign nodes color by group
     var circles =  d3.select("#nodes").selectAll(".node")
         .data( d3.values(nodes), function(d) {return d.id;});
@@ -159,7 +161,8 @@ function drawNodes(nodes) {
         .attr("default-opacity",1)
         .attr("cx", function(d) { return x(d.id);})
         .attr("cy", yfixed )
-        .attr("r",  value )
+        .attr("r",  0)
+        .each(drawLinksToChildren)
         .on("mouseover", function(d){
            if(d != focalNode){
                 addTooltip(d);
@@ -186,18 +189,23 @@ function drawNodes(nodes) {
             }
             })
         .on("click", handleClick);
-
-    circles.exit().style("opacity",0.05);
+    circles.transition()
+        .duration(1000)
+        .attr("cx", function(d) { return x(d.id);})
+        .attr("r", value)
+        .each(drawLinksToChildren);
+    circles.exit().transition().duration(1000).attr("r",0).remove();
     }
 
-// Draws arcs for each link on plot
-// *Note* draws on CANVAS not SVG for performance
-function drawLinks(links) {
-    links.forEach(function(d){
-        if(viewable(d.source.id) || viewable(d.target.id)){
-            drawArc(x(d.source.id),x(d.target.id),color[d.source.group]);
-        }
-    });
+function drawLinksToChildren(d) {
+    if(options.show_links){
+        d.children.forEach(function(c){
+            if(c.id in nodes && viewable(d.id) || viewable(c.id)){
+                drawArc(x(d.id),x(c.id),color[d.group]);
+            }
+        });
+        
+    }
 }
 
 // Draw highlight arc on hover
@@ -309,21 +317,13 @@ function showSubgraph(nodes,links){
 //-----------------Public methods------------------
 
 sapdash.change_order = function(order){
-    x.domain(orders[order]);
+    x.domain(positions[order]);
     canvas.save();
     canvas.clearRect(0, 0, width, height);
     d3.select("#mask").style("fill-opacity",1);
     var t = svg.transition().duration(1500);
-    t.selectAll("circle")
-        .attr("cx", function(d) { return x(d.id); });
-    t.selectAll(".highlight,.focal_highlight")
-        .attr("d", getBezierSvg);
-    t.selectAll(".tooltip,.focaltip")
-            .each(function(){
-                d3.select(this).attr("x",x(this.textContent));
-            }); 
-    if(options.show_links){
 
+    if(options.show_links){
         if(focalNode){
             t.select("#mask").style("fill-opacity",0.55);   
         }
@@ -332,15 +332,33 @@ sapdash.change_order = function(order){
         }
         canvas.save();
         canvas.clearRect(0, 0, width, height);
-        drawLinks(graph.links);
-        canvas.restore();    
-    }            
+        t.selectAll("circle")
+            .attr("cx", function(d) { return x(d.id); })
+            .each(drawLinksToChildren);
+        canvas.restore();  
+    }
+    else{
+        t.selectAll("circle")
+            .attr("cx", function(d) { return x(d.id); });
+    }
+
+    t.selectAll(".highlight,.focal_highlight")
+        .attr("d", getBezierSvg);
+    t.selectAll(".tooltip,.focaltip")
+            .each(function(){
+                d3.select(this).attr("x",x(this.textContent));
+            });         
 };
 
 sapdash.show_links = function(bool){
     options.show_links = bool;
     if(options.show_links){
-        drawLinks(graph.links);
+        canvas.save();
+        canvas.clearRect(0, 0, width, height);
+        for (var key in nodes) {
+            drawLinksToChildren(nodes[key]);
+        }
+        canvas.restore();  
     }
     else{
         canvas.clearRect(0, 0, width, height);
@@ -351,77 +369,74 @@ sapdash.set_value = function(new_value){
     if(new_value === "none") value = function(d){return default_radius;};
     else{
         value = function(d){
-            if(d[new_value]) return Math.max(2,Math.log(d[new_value]));
+            if(d[new_value] && d[new_value] <= 1){
+                // Grow up to 3 times as big as default
+                return d[new_value] * 2 * default_radius;
+            }
+            // Scale logarithmically with 2px minimum   
+            else if( d[new_value] && d[new_value] > 1) {
+                return Math.max(2,Math.log(d[new_value]));
+            }
             else return default_radius;
         };
     }
-    // Recalculate values (This should be refactored)
-    orders.value = [];
-    var mapCallback = function(d){return group+d;};
-    var valueSort =  function(a, b) { return value(graph.nodes[b]) - value(graph.nodes[a]);};
-
-    for (var group in idsByGroup) {
-        var spacer = d3.range(5).map(mapCallback);
-        orders.value  = orders.value.concat(idsByGroup[group].sort(valueSort)).concat(spacer);
-    }
+    positions = setPositions();
+    // positions = setPositions(nodes);
 
     var t = svg.transition().duration(500);
     t.selectAll("circle")
         .attr("r", value);
 };
 
+sapdash.update_nodes = function(data,groups){
+    nodes = data;
+    options.groups = groups;
+    drawNodes(nodes);
+    t = svg.transition().duration(1000);
+    t.selectAll(".highlight,.focal_highlight")
+            .attr("d", getBezierSvg);
+};
+
+sapdash.selectNode = function(id){
+    if(id in nodes) handleClick(nodes[id]);
+    else console.log(id + " currently not displayed");
+};
+
+sapdash.visibleNodes = function(){
+    return nodes;
+};
 
 //-----------------End public methods------------------
 
 //-----------------Helper functions------------------
-function processData(graph){
-    for(var key in graph.nodes) {
-        var node = graph.nodes[key];
-            node.degree   = 0;
-            node.parents  = [];
-            node.children = [];
 
-        // load idsByGroup global
-        if(idsByGroup[graph.nodes[key].group]) idsByGroup[graph.nodes[key].group].push(key);
+function setPositions(order){
+    console.log(nodes);
+// function setPositions(nodes,order){
+    // Helper sort functions
+    var degreeSort = function(a, b) { return nodes[b].degree - nodes[a].degree;};
+    var valueSort =  function(a, b) { return value(nodes[b]) - value(nodes[a]);};
+
+    var ids_by_group = {};
+    for(var key in nodes) {
+        if(ids_by_group[nodes[key].group]) ids_by_group[nodes[key].group].push(key);
         else{
-            idsByGroup[graph.nodes[key].group] = [key];
+            ids_by_group[nodes[key].group] = [key];
         }
     }
-     // Filter links with null source/target
-    graph.links = graph.links.filter(function(d){
-        return (d.source in graph.nodes && d.target in graph.nodes);}
-    );
-
-    graph.links.forEach(function(d, i) {
-        // Set target/source to point to objects
-        d.source = graph.nodes[d.source];
-        d.target = graph.nodes[d.target];
-        // Count degree
-        d.source.degree++;
-        d.target.degree++;
-        // Set up parent/child id array in each node
-        d.source.children.push(d.target);
-        d.target.parents.push(d.source);
-    });
-    return graph;
-}
-
-function getOrders(graph){
-    // Helper sort functions
-    var degreeSort = function(a, b) { return graph.nodes[b].degree - graph.nodes[a].degree;};
-    var valueSort =  function(a, b) { return value(graph.nodes[b]) - value(graph.nodes[a]);};
-    var mapCallback = function(d){return group+d;};
    
     var finalPosition = {name:[], degree:[], value:[]};
 
-    // Used for spacing
+    var ordering = options.groups;
 
-    for (var group in idsByGroup) {
-        var spacer = d3.range(5).map(mapCallback);
-        finalPosition.name   = finalPosition.name.concat(idsByGroup[group].sort()).concat(spacer);
-        finalPosition.degree = finalPosition.degree.concat(idsByGroup[group].sort(degreeSort)).concat(spacer);
-        finalPosition.value  = finalPosition.value.concat(idsByGroup[group].sort(valueSort)).concat(spacer);
-    }
+    ordering.forEach(function(group) {
+        var spacer = d3.range(5).map(function(d){return group+d;});
+        if(ids_by_group[group]){
+            finalPosition.name   = finalPosition.name.concat(ids_by_group[group].sort()).concat(spacer);
+            finalPosition.degree = finalPosition.degree.concat(ids_by_group[group].sort(degreeSort)).concat(spacer);
+            finalPosition.value  = finalPosition.value.concat(ids_by_group[group].sort(valueSort)).concat(spacer);  
+        }
+    });
 
     return finalPosition;
 }
@@ -443,13 +458,15 @@ function getBezierSvg(d){
     x1 = x(d.source.id);
     x2 = x(d.target.id);
 
+    if(x1 && x2){
+        if(x1 > width || x1 < 0) x1 = [x2, x2 = x1][0]; //Swap if x1 not in viewport
+        
+        rel_dist = Math.abs(x1 - x2) / width; 
+        ycontrol = yfixed * (1 - 2*rel_dist);
+        center = (x1 + x2)/2;
+        return "M" + x1 + " " + yfixed + " Q " + center + " " + ycontrol + ", " + x2 + " " + yfixed;
+    }
     // Want x1 to be within viewport (bug if pen is moved too far out of view)
-    if(x1 > width || x1 < 0) x1 = [x2, x2 = x1][0]; //Swap if x1 not in viewport
-    
-    rel_dist = Math.abs(x1 - x2) / width; 
-    ycontrol = yfixed * (1 - 2*rel_dist);
-    center = (x1 + x2)/2;
-    return "M" + x1 + " " + yfixed + " Q " + center + " " + ycontrol + ", " + x2 + " " + yfixed;
 }
 
 // Generates a tooltip for a SVG circle element based on its ID
@@ -493,7 +510,7 @@ function makeParentLinks(node){
     var l = [];
     if(node.parents){
         node.parents.forEach(function(d){
-            l.push({source:d,target:node});
+            if(d.id in nodes) l.push({source:d,target:node});
         });
     }
     return l;
@@ -518,7 +535,7 @@ function makeChildLinks(node){
     var l = [];
     if(node.children){
         node.children.forEach(function(c){
-            l.push({source:node,target:c});
+            if(c.id in nodes) l.push({source:node,target:c});
         });
     }
     return l;
@@ -531,7 +548,7 @@ function getAllParentsAndChildren(d){
     function getAllParentsRecursive(caller){
         var parents = caller.parents;
         parents.forEach(function(p) {
-            if(!_.contains(fam,p)){
+            if(!_.contains(fam,p) && p.id in nodes){
                 p.child = caller;
                 fam.push(p);
                 getAllParentsRecursive(p);
@@ -541,7 +558,7 @@ function getAllParentsAndChildren(d){
     function getAllChildrenRecursive(caller){
         var children = caller.children;
         children.forEach(function(c) {
-            if(!_.contains(fam,c)){
+            if(!_.contains(fam,c) && c.id in nodes){
                 c.parent = caller;
                 fam.push(c);
                 getAllChildrenRecursive(c);
