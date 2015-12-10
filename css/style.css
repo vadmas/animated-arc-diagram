@@ -46,12 +46,12 @@ b {
 }
 
 #focus {
-    height: 350px;
+    /*height: 300px;*/
     background: #F0F0F0;
 }
 
 #filterbar {
-    height: 350px;
+    height: 320px;
     background: #E0E0E0;
 }
 
@@ -68,6 +68,9 @@ b {
     margin-top:5px; 
 }
 
+td.details-control {
+    cursor: pointer;
+}
 
 .highlight {
     stroke: red;

@@ -8,19 +8,21 @@
     <title>SAP Dashboard</title>
 
     <meta name="Vaden Masrani" content="D3Dashboard">
+	
+	<!-- D3,jQuery,Underscore  -->
+   	<script type="text/javascript" src="node_modules/d3/d3.min.js"></script>
+    <script type="text/javascript" src="node_modules/jquery/dist/jquery.min.js"></script>
+   	<script type="text/javascript" src="node_modules/underscore/underscore-min.js"></script>
+   	
+	<!-- Bootstrap  -->
+	<script src="node_modules/bootstrap/js/bootstrap.min.js"></script>
+	<link href="node_modules/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
-    <link href="css/bootstrap.min.css" rel="stylesheet">
-    <link href="css/style.css" rel="stylesheet">
-
-   	<script type="text/javascript" src="js/d3.v3.min.js"></script>
-   	<script type="text/javascript" src="js/underscore.min.js"></script>
-   	<script type="text/javascript" src="js/tinycolor.js"></script>
-
-    <script src="js/jquery.min.js"></script>
-    <script src="js/bootstrap.min.js"></script>
+   	<!-- tinycolor  -->
+   	<script type="text/javascript" src="node_modules/tinycolor/tinycolor.js"></script>
 
 	<!-- Slider  -->
-    <script src="node_modules/bootstrap-slider/js/bootstrap-slider.js"></script>
+    <script type="text/javascript" src="node_modules/bootstrap-slider/js/bootstrap-slider.js"></script>
 	<link href="node_modules/bootstrap-slider/css/bootstrap-slider.css" rel="stylesheet">
 
     <!-- Chosen  -->
@@ -32,11 +34,13 @@
     <link rel="stylesheet" type="text/css" href="node_modules/bootstrap-multiselect/dist/css/bootstrap-multiselect.css">
 
     <!-- Sortable  -->
-    <script src="/node_modules/react-rubaxa-sortable/node_modules/sortablejs/Sortable.min.js"></script>
-   
-    <!-- Defiant  
-    <script src="node_modules/defiant/defiant.min.js"></script>
-    -->
+    <script src="node_modules/react-rubaxa-sortable/node_modules/sortablejs/Sortable.min.js"></script>
+   	
+   	<!-- Table with Buttons extension -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.10/css/jquery.dataTables.min.css">
+   	<script src="https://cdn.datatables.net/1.10.10/js/jquery.dataTables.min.js"></script>
+   	<script src="https://cdn.datatables.net/buttons/1.1.0/js/dataTables.buttons.min.js"></script>
+
 
 	<link href="css/style.css" rel="stylesheet" type="text/css">
   </head>
@@ -48,7 +52,19 @@
 				<form class="navbar-form navbar-right" role="search">
 					<label style="color:white; font-weight:normal">Search</label>
 	                <select class="chosen chzn-done item_search" name="FUNC_select" id="item_select">
+	                <option selected='show_all'>Show All</option>
 	                </select>
+	                <!-- Single button -->
+					<div class="btn-group">
+					  <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+					    Export <span class="caret"></span>
+					  </button>
+					  <ul class="dropdown-menu">
+					    <li><a href="#" id="csvExport">CSV</a></li>
+					    <li><a href="#">Excel</a></li>
+					    <li><a href="#">JSON</a></li>
+					  </ul>
+					</div>
 				</form>
 			</div>
 			<div class="row" id="focus">
@@ -66,7 +82,10 @@
 					     <select class="form-control input-medium top-buffer" style="margin-top: 15px;" id="sortSelect">
 							 <option value="name">Name</option>
 						     <option value="degree">Degree</option>
-						     <option value="value">Value</option>
+						     <option value="performance">Performance</option>
+						     <option value="usage">Usage</option>
+						     <option value="startdate">Start Date</option>
+						     <option value="loc">Lines of Code</option>
 						 </select>
 					</div>
 					<div class="top-buffer" id="valueDiv">
@@ -81,20 +100,9 @@
 						 </select>
 					</div>
 					<div class="top-buffer" id="orderDiv">
-				    	<label class="control-label text-left input-mini">Order</label>
+				    	<label class="control-label text-left input-mini">Group</label>
 					     <select class="form-control input-medium top-buffer" style="margin-top: 15px;" id="orderSelect" multiple="multiple">
-							<option selected='selected'>PROG</option>
-							<option selected='selected'>TCOD</option>
-							<option selected='selected'>VIEW</option>
-							<option selected='selected'>FUNC</option>
-							<option selected='selected'>TABL</option>
-							<option selected='selected'>INCL</option>
-							<option selected='selected'>METH</option>
-							<option selected='selected'>FUGR</option>
-							<option selected='selected'>TTAB</option>
-							<option selected='selected'>STRU</option>
-							<option selected='selected'>DTEL</option>
-							<option selected='selected'>TTYP</option>
+
 						 </select>
 					</div>
 				<div class="checkbox">
@@ -105,9 +113,21 @@
 				</div>
 				</div>
 				<div class="col-md-9">
-					<p>
-						Lorem ipsum dolor sit amet, <strong>consectetur adipiscing elit</strong>. Aliquam eget sapien sapien. Curabitur in metus urna. In hac habitasse platea dictumst. Phasellus eu sem sapien, sed vestibulum velit. Nam purus nibh, lacinia non faucibus et, pharetra in dolor. Sed iaculis posuere diam ut cursus. <em>Morbi commodo sodales nisi id sodales. Proin consectetur, nisi id commodo imperdiet, metus nunc consequat lectus, id bibendum diam velit et dui.</em> Proin massa magna, vulputate nec bibendum nec, posuere nec lacus. <small>Aliquam mi erat, aliquam vel luctus eu, pharetra quis elit. Nulla euismod ultrices massa, et feugiat ipsum consequat eu.</small>
-					</p>
+					<table id="myTable" class="row-border stripe compact hover" cellspacing="0" width="100%">
+						<thead>
+				            <tr>
+				            	<th></th>
+				                <th>ID</th> 
+				                <th>Group</th>
+				                <th>Performance</th>
+				                <th>Usage</th>
+				                <th>Lines of Code</th>
+				                <th>Database Rows</th>
+				                <th>Violation Density</th>
+				                <th>Creation date</th> 
+				            </tr>
+				        </thead>
+					</table>
 				</div>
 			</div>
 		</div>
@@ -116,14 +136,124 @@
 		<div id="arc_diagram"></div>
 	</div>
 </div>
-<script type="text/javascript" src="DataHandler.js"></script>
-<script type="text/javascript" src="arc_diagram.js"></script>
+<script type="text/javascript" src="js/DataHandler.js"></script>
+<script type="text/javascript" src="js/arc_diagram.js"></script>
 <script>
 $(document).ready(function(){
 	d3.json("data/ps_data.json", function(json){
 	  	var dataHandler = DataHandler(json); // Global
-	    sapdash.init(dataHandler.nodes,{groups:dataHandler.groups},"#arc_diagram");
+
+	    sapdash.init(dataHandler.nodes,{groups:dataHandler.groups,
+	    	clickHandler:function(d){
+	    		table.search( d.id ).draw();
+			  	table.$('tr.selected').removeClass('selected');
+				$("tr:contains("+d.id+")").first().addClass('selected');
+	    }},
+	    "#arc_diagram");
+
+	    table = $('#myTable').DataTable({
+		    data: d3.values(dataHandler.nodes),
+		    "scrollY":        "250px",
+	        "scrollCollapse": true,
+	        "sScrollX": "100%",
+    		"bScrollCollapse": true,
+	        "paging":         false,
+	        "info":     false,
+	        'sDom': 't',
+	        buttons: [
+            'copy', 'csv', 'excel', 'pdf'
+        	],
+		    columns: [
+		     {
+                "className":      'details-control',
+                "orderable":      false,
+                "data":           null,
+                "defaultContent": '<span class="glyphicon glyphicon-chevron-down"></span>'
+            },
+	        { data: "id", },
+	        { data: "group" },
+	        { data: "performance" },
+	        { data: "usage" },
+	        { data: "loc" },
+	        { data: "dbrows" },
+	        { data: "p_viol_d" },
+	        { data: "creation_date" },
+	        { data: "parent_ids", "visible": false },  //To allow search to use these fieldss
+	        { data: "children_ids", "visible": false },//To allow search to use these fieldss
+	    ]
+		});
+			
+	    $("#csvExport").click(function() {
+	      console.log("clicked");
+	      var csv = table.buttons.exportData();
+	      window.location.href = 'data:text/csv;charset=UTF-8,'+ encodeURIComponent(csv.body);
+	    });
+
+
+		 $('#myTable tbody').on( 'click', 'tr', function () {
+		 	console.log("tableclick");
+	        if ( $(this).hasClass('selected') ) {
+	        	sapdash.selectNode(table.row(this).data().id);
+	            $(this).removeClass('selected');
+	        }
+	        else {
+	            table.$('tr.selected').removeClass('selected');
+	            $(this).addClass('selected');
+	            sapdash.selectNode(table.row(this).data().id);
+	        }
+	    } );
 	 	
+    	 // Add event listener for opening and closing details
+	    $('#myTable tbody').on('click', 'td.details-control', function (event) {
+	    	event.stopPropagation(); // Prevent select clickhandler from being called
+	        var tr = $(this).closest('tr');
+	        var row = table.row( tr );
+	        if ( row.child.isShown() ) {
+	            // This row is already open - close it
+	            row.child.hide();
+	            tr.find("span").attr('class',"glyphicon glyphicon-chevron-down");
+	        }
+	        else {
+	            // Open this row
+	            row.child( format(row.data()) ).show();
+	            tr.find("span").attr('class',"glyphicon glyphicon-chevron-up");
+	        }
+	    } );
+
+	    /* Formatting function for row details - modify as you need */
+			function format ( d ) {
+				var parents = "";
+				var children = "";
+				if(d.parent_ids.length !== 0){
+					d.parent_ids.forEach(function(elem) {
+						parents += "<li>"  + elem + "</li>";
+					});
+				} 
+				else{
+					parents = "None";	
+					
+				}
+				if(d.children_ids.length !== 0){
+					d.children_ids.forEach(function(elem) {
+						children += "<li>"  + elem + "</li>";
+					});
+				} 
+				else{
+					children = "None";	
+					
+				}
+			    return '<table cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">'+
+			        '<tr>'+
+			            '<td>Parents:</td>'+
+			            '<td>'+parents+'</td>'+
+			        '</tr>'+
+			        '<tr>'+
+			            '<td>Children:</td>'+
+			            '<td>'+children+'</td>'+
+			        '</tr>'+
+			    '</table>';
+			}
+
 	 	//Fill searchbar 
 		var groups =  dataHandler.groups;
 
@@ -133,27 +263,46 @@ $(document).ready(function(){
 		      var nodes = dataHandler.getByGroup(d);
 		      Object.keys(nodes).forEach(function(id){
 		        var option = $("<option></option>");
-		        option.attr("value",id).text(id);
+		        option.attr("value",id).text(nodes[id].label);
 		        optgroup.append(option);
 		      });
+		      // Update itemsearch
 		      $(".item_search").append(optgroup);
+			  
+			  // Update groupSelect
+		      $("#orderSelect").append("<option selected='selected'>"+d+"</option>");
 		   });
 
 		   $(".item_search").chosen({
 		    width:"300px",
 		    search_contains: true
 		  }).on("change", function(event, data){ 
+		  	  if(this.value ==="Show All"){
+				table.search("").draw();
+				sapdash.selectNode("");		  	  	
+		  	  }
+		  	  else{
+			  	  table.search( this.value ).draw();
+			  	  table.$('tr.selected').removeClass('selected');
+				  $("tr:contains("+this.value+")").first().addClass('selected');
+		  	  }
+
 		      sapdash.selectNode(data.selected);
 		  });
 
 	  // Make orderSelect sortable by dragging
 
-	  $('#orderSelect').multiselect();
+	  $('#orderSelect').multiselect({
+            onDropdownHide: function(event) {
+                filter(true);
+            }
+        });
+
 	  $("#orderDiv .multiselect-container").attr("id","my-ui-list");
 	  var list = document.getElementById("my-ui-list");
 	  Sortable.create(list, {
 		 onUpdate: function (evt){
-	 		$("#orderSelect").trigger("change");
+	 			filter(false);
 			}
 		}); 
 
@@ -166,16 +315,10 @@ $(document).ready(function(){
 	    sapdash.change_order($(this).val());
 	 	});
 	
-	  $("#performanceSlider, #usageSlider").slider();
+	  $("#performanceSlider, #usageSlider").slider({});
 
-	  $("#performanceSlider, #usageSlider, #orderSelect").change(function() {
-	    	var performance = $("#performanceSlider").slider('getValue');
-	    	var usage = $("#usageSlider").slider('getValue');
-	    	var groups = [];
-			$("#orderDiv input:checked").each(function(){groups.push($(this).val());});
-			var n = dataHandler.filterBy(performance,usage,groups);
-	    	sapdash.update_nodes(n,groups);
-	    	updateSearchBar();
+	  $(".slider-handle").on("mouseup",function() {
+	    	filter(true);
 		});
 
 	   d3.select("#links_checkbox").on("change", function() {
@@ -186,25 +329,42 @@ $(document).ready(function(){
 	        sapdash.show_links(true);
 	    }
 	  });
-	 	
+	
 	 	// Show after everything is loaded 
 		$(".container-fluid").css("visibility", "visible");
-	 
+
+		function filter(update_table){
+			var performance = $("#performanceSlider").slider('getValue');
+	    	var usage = $("#usageSlider").slider('getValue');
+	    	// Get checked groups in order 
+	    	var groups = [];
+			$("#orderDiv input:checked").each(function(){groups.push($(this).val());});
+			var n = dataHandler.filterBy(performance,usage,groups);
+			
+			if(update_table){
+				table.clear();
+				table.rows.add(d3.values(n)).draw();
+			}
+	    	sapdash.update_nodes(n,groups);
+	    	updateSearchBar();
+		}
+
+		function updateSearchBar(){
+			var validNodes = sapdash.visibleNodes();
+			$(".item_search option").each(function(){
+				if($(this).val() === "Show All") return;
+	 			if($(this).val() in validNodes){
+					$(this).attr('disabled',false);
+				}
+				else{
+					$(this).attr('disabled',"disabled");
+				}
+			});
+			$(".item_search").trigger("chosen:updated");
+		} 	
+
 	 });
 
-	function updateSearchBar(){
-		var validNodes = sapdash.visibleNodes();
-		$(".item_search option").each(function(){
-			if($(this).val() in validNodes){
-				$(this).attr('disabled',false);
-			}
-			else{
-				$(this).attr('disabled',"disabled");
-			}
-		});
-		$(".item_search").trigger("chosen:updated");
-	}
-	 	
 });
 
    </script>
