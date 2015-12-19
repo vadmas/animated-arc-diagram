@@ -24,11 +24,13 @@ var value = function(d){return default_radius;};
 var svg, canvas, positions, options;
 var nodes;
 
-var focalNode;
+var focalNode, focalSet;
 
 sapdash.init = function(data,opts,container_id){
     options = opts || {};
     options.show_links = options.show_links  || true;
+    options.sort = options.sort  || "name";
+
     width = d3.select(container_id).node().getBoundingClientRect().width - 1;
     height = width * 0.2;
 
@@ -126,7 +128,7 @@ sapdash.init = function(data,opts,container_id){
         d3.selectAll(".highlight, .focal_highlight")
             .attr("d", getBezierSvg);
         
-        d3.selectAll(".tooltip, .focaltip")
+        d3.selectAll(".arctooltip, .arcfocaltip")
             .each(function(){
                 d3.select(this).attr("x",x(this.textContent));
             });
@@ -147,7 +149,7 @@ function drawNodes() {
     canvas.restore();  
 
     // Set domain
-    x.domain(positions.name);
+    x.domain(positions[options.sort]);
 
     // used to assign nodes color by group
     var circles =  d3.select("#nodes").selectAll(".node")
@@ -260,9 +262,10 @@ function handleClick(d){
             .attr("r",  value );
 
         d3.select("#mask").style("fill-opacity",0);
-        d3.selectAll(".focaltip").remove(); 
+        d3.selectAll(".arcfocaltip").remove(); 
         d3.selectAll(".focal_highlight").remove();
         focalNode = null;
+        focalSet = null;
     }
     else{
         focalSet = getAllParentsAndChildren(d);
@@ -282,11 +285,11 @@ function handleClick(d){
         focalNode = d;
 
         // Change tooltip
-        d3.selectAll(".tooltip, .focaltip").remove(); 
+        d3.selectAll(".arctooltip, .arcfocaltip").remove(); 
         addTooltip(d);
         d3.selectAll(".nodename")
-            .attr("class","focaltip")
-            .attr("dy", margin*1.5);
+            .attr("class","arcfocaltip")
+            .attr("dy", margin*2);
     }
 }
 
@@ -319,7 +322,7 @@ function showSubgraph(nodes,links){
 
 //-----------------Public methods------------------
 
-sapdash.change_order = function(order){
+sapdash.sort_by = function(order){
     x.domain(positions[order]);
     canvas.save();
     canvas.clearRect(0, 0, width, height);
@@ -347,7 +350,7 @@ sapdash.change_order = function(order){
 
     t.selectAll(".highlight,.focal_highlight")
         .attr("d", getBezierSvg);
-    t.selectAll(".tooltip,.focaltip")
+    t.selectAll(".arctooltip,.arcfocaltip")
             .each(function(){
                 d3.select(this).attr("x",x(this.textContent));
             });         
@@ -384,16 +387,16 @@ sapdash.set_value = function(new_value){
         };
     }
     positions = setPositions();
-    // positions = setPositions(nodes);
 
     var t = svg.transition().duration(500);
     t.selectAll("circle")
         .attr("r", value);
 };
 
-sapdash.update_nodes = function(data,groups){
+sapdash.update_nodes = function(data,groups,sort){
     nodes = data;
     options.groups = groups;
+    options.sort = sort;
     drawNodes(nodes);
     t = svg.transition().duration(1000);
     t.selectAll(".highlight,.focal_highlight")
@@ -402,9 +405,13 @@ sapdash.update_nodes = function(data,groups){
 
 sapdash.selectNode = function(id){
     handleClick(nodes[id]);
-    // if(id in nodes) handleClick(nodes[id]);
-    // else console.log(id + " currently not displayed");
+    
 };
+
+sapdash.get_focal_set = function(){
+    return focalSet;
+};
+
 
 sapdash.visibleNodes = function(){
     return nodes;
@@ -418,7 +425,7 @@ function setPositions(order){
     // Helper sort functions
     function get_sorter(sortby){
         if(sortby === "startdate"){
-            return function(a,b) {return new Date(nodes[b][sortby]) - new Date(nodes[a][sortby]);};
+            return function(a,b) {return new Date(nodes[b][sortby]) - new Set(nodes[a][sortby]);};
         }
         return function(a, b) { return nodes[b][sortby] - nodes[a][sortby];};
     }
@@ -488,7 +495,7 @@ function addTooltip(d) {
         .text(text)
         .attr("x", xpos)
         .attr("y", yfixed)
-        .attr("dy", margin*2)
+        .attr("dy", margin*2.5)
         .attr("class", "nodename");
 
     var offset = tooltip.node().getBBox().width / 2;

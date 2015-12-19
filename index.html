@@ -15,6 +15,7 @@
    	<script type="text/javascript" src="node_modules/underscore/underscore-min.js"></script>
    	
 	<!-- Bootstrap  -->
+
 	<script src="node_modules/bootstrap/js/bootstrap.min.js"></script>
 	<link href="node_modules/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -36,12 +37,16 @@
     <!-- Sortable  -->
     <script src="node_modules/react-rubaxa-sortable/node_modules/sortablejs/Sortable.min.js"></script>
    	
-   	<!-- Table with Buttons extension -->
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.10/css/jquery.dataTables.min.css">
+   	<!-- Table with Select/Buttons extension-->
    	<script src="https://cdn.datatables.net/1.10.10/js/jquery.dataTables.min.js"></script>
-   	<script src="https://cdn.datatables.net/buttons/1.1.0/js/dataTables.buttons.min.js"></script>
+	<script src="https://cdn.datatables.net/1.10.10/js/dataTables.bootstrap.min.js"></script>
+	<link href="https://cdn.datatables.net/1.10.10/css/dataTables.bootstrap.min.css" rel="stylesheet">
+	<script src="https://cdn.datatables.net/select/1.1.0/js/dataTables.select.min.js"></script>
+	<link href="https://cdn.datatables.net/select/1.1.0/css/select.dataTables.min.css" rel="stylesheet">
+	<script src="https://cdn.datatables.net/buttons/1.1.0/js/dataTables.buttons.min.js"></script>
 
 
+  
 	<link href="css/style.css" rel="stylesheet" type="text/css">
   </head>
   <body>
@@ -71,7 +76,7 @@
 				<div class="col-md-3" id="filterbar">
 					<div class="input-small"> 
 						<label class="control-label text-left input-medium">Performance</label>
-						<input id="performanceSlider" type="text" class="span2" value="" data-slider-min="0" data-slider-max="1" data-slider-step="0.01" data-slider-value="[0,1]"/> 
+							<input id="performanceSlider" type="text" class="span2" value="" data-slider-min="0" data-slider-max="1" data-slider-step="0.01" data-slider-value="[0,1]"/> 
 					</div>
 					<div class="input-small">
 						<label class="control-label text-left input-medium">Usage</label>
@@ -117,14 +122,15 @@
 						<thead>
 				            <tr>
 				            	<th></th>
-				                <th>ID</th> 
-				                <th>Group</th>
-				                <th>Performance</th>
-				                <th>Usage</th>
-				                <th>Lines of Code</th>
-				                <th>Database Rows</th>
-				                <th>Violation Density</th>
-				                <th>Creation date</th> 
+				                <th class="right">ID</th> 
+				                <th class="right">Group</th>
+				                <th class="right">Performance</th>
+				                <th class="right">Usage</th>
+				                <th class="right">Degree</th>
+				                <th class="right">Lines of Code</th>
+				                <th class="right">Database Rows</th>
+				                <th class="right">Violation Density</th>
+				                <th class="right">Creation date</th> 
 				            </tr>
 				        </thead>
 					</table>
@@ -141,13 +147,23 @@
 <script>
 $(document).ready(function(){
 	d3.json("data/ps_data.json", function(json){
-	  	var dataHandler = DataHandler(json); // Global
+	  	dataHandler = DataHandler(json); // Global
 
 	    sapdash.init(dataHandler.nodes,{groups:dataHandler.groups,
 	    	clickHandler:function(d){
-	    		table.search( d.id ).draw();
-			  	table.$('tr.selected').removeClass('selected');
-				$("tr:contains("+d.id+")").first().addClass('selected');
+				var focalset = sapdash.get_focal_set();
+				table.clear();
+				table.search(""); //Clear filter
+				if( focalset){
+					console.log("notnull");
+					table.rows.add(focalset);			
+				}
+				else{
+					console.log("null");
+					table.rows.add(d3.values(sapdash.visibleNodes()));
+				}
+					table.draw();	
+
 	    }},
 	    "#arc_diagram");
 
@@ -160,9 +176,7 @@ $(document).ready(function(){
 	        "paging":         false,
 	        "info":     false,
 	        'sDom': 't',
-	        buttons: [
-            'copy', 'csv', 'excel', 'pdf'
-        	],
+	        select: true,
 		    columns: [
 		     {
                 "className":      'details-control',
@@ -174,6 +188,7 @@ $(document).ready(function(){
 	        { data: "group" },
 	        { data: "performance" },
 	        { data: "usage" },
+	        { data: "degree" },
 	        { data: "loc" },
 	        { data: "dbrows" },
 	        { data: "p_viol_d" },
@@ -190,19 +205,22 @@ $(document).ready(function(){
 	    });
 
 
-		 $('#myTable tbody').on( 'click', 'tr', function () {
-		 	console.log("tableclick");
-	        if ( $(this).hasClass('selected') ) {
-	        	sapdash.selectNode(table.row(this).data().id);
-	            $(this).removeClass('selected');
-	        }
-	        else {
-	            table.$('tr.selected').removeClass('selected');
-	            $(this).addClass('selected');
-	            sapdash.selectNode(table.row(this).data().id);
-	        }
-	    } );
-	 	
+		 // $('#myTable tbody').on( 'click', 'tr', function () {
+		 // 	sapdash.selectNode(table.row(this).data().id);
+	  //   });
+
+		table.on("select",function ( e, dt, type, indexes ) {
+			sapdash.selectNode(dt.data().id);
+		});
+
+		table.on("dblclick",function ( e, dt, type, indexes ) {
+			table.clear();
+			table.search(""); //Clear filter
+			table.rows.add(d3.values(dataHandler.nodes));
+			table.draw();
+		});
+
+
     	 // Add event listener for opening and closing details
 	    $('#myTable tbody').on('click', 'td.details-control', function (event) {
 	    	event.stopPropagation(); // Prevent select clickhandler from being called
@@ -302,7 +320,10 @@ $(document).ready(function(){
 	  var list = document.getElementById("my-ui-list");
 	  Sortable.create(list, {
 		 onUpdate: function (evt){
-	 			filter(false);
+		 		filter(true);
+			 // 	var groups = [];
+				// $("#orderDiv input:checked").each(function(){groups.push($(this).val());});
+		 	// 	sapdash.reorder(groups);
 			}
 		}); 
 
@@ -312,7 +333,7 @@ $(document).ready(function(){
 		});
 
 	  $('#sortSelect').multiselect().change(function() {
-	    sapdash.change_order($(this).val());
+	    sapdash.sort_by($(this).val());
 	 	});
 	
 	  $("#performanceSlider, #usageSlider").slider({});
@@ -343,9 +364,11 @@ $(document).ready(function(){
 			
 			if(update_table){
 				table.clear();
-				table.rows.add(d3.values(n)).draw();
+				table.search(""); //Clear filter
+				table.rows.add(d3.values(n));
+				table.draw();
 			}
-	    	sapdash.update_nodes(n,groups);
+	    	sapdash.update_nodes(n,groups,$("#sortSelect").val());
 	    	updateSearchBar();
 		}
 
