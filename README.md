@@ -1,3 +1,1 @@
-To run, clone then start a localserver using:
-python -m SimpleHTTPServer 8001
-Then go to localhost:8001 in your browser.
+Interactive Arc Diagram to display relationships between artifacts in an SAP network. Each node represents a type of SAP object and each link represents a caller-callee relationship between them. See a demo here: http://www.cs.ubc.ca/~vadmas/arc_diagram/index.html 
